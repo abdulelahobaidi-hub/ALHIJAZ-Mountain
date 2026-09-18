@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>نادي جبال الحجاز</title>
+<meta name="description" content="نادي جبال الحجاز — مؤقت تمارين وجداول رياضية ومتابعة الاستمرارية">
+<meta name="theme-color" content="#1B2233">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="جبال الحجاز">
+<link rel="apple-touch-icon" href="assets/icon-192.png">
+<link rel="icon" href="assets/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+
+<!-- ======================= SPLASH / AUTH ======================= -->
+<section id="gate" class="gate">
+  <div class="gate-sky" aria-hidden="true">
+    <svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMax slice">
+      <defs>
+        <linearGradient id="gSky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="var(--aura-2)"/><stop offset="100%" stop-color="var(--aura-1)"/>
+        </linearGradient>
+        <linearGradient id="gSnow" x1="0" y1="0" x2="0.3" y2="1">
+          <stop offset="0%" stop-color="var(--peak)"/><stop offset="100%" stop-color="var(--peak-2)"/>
+        </linearGradient>
+      </defs>
+      <rect width="400" height="300" fill="url(#gSky)"/>
+      <g class="mist"><ellipse cx="120" cy="120" rx="110" ry="46"/><ellipse cx="300" cy="90" rx="90" ry="38"/></g>
+      <path d="M0 300 L70 170 L110 205 L160 120 L205 300Z" fill="var(--rock-2)"/>
+      <path d="M300 300 L340 165 L400 240 L400 300Z" fill="var(--rock-2)"/>
+      <path d="M118 300 L215 55 L320 300Z" fill="var(--rock-1)"/>
+      <path d="M215 55 L258 155 L232 140 L205 175 L186 148 L168 160Z" fill="url(#gSnow)"/>
+      <path d="M160 120 L184 175 L168 165 L152 180 L140 162Z" fill="url(#gSnow)" opacity=".85"/>
+      <path d="M0 300 Q120 246 205 262 Q300 280 400 252 L400 300Z" fill="var(--meadow)"/>
+      <path d="M186 300 Q205 272 192 258 Q180 246 200 236" stroke="var(--trail)" stroke-width="7" fill="none" stroke-linecap="round"/>
+    </svg>
+  </div>
+
+  <div class="gate-body">
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 64 64" aria-hidden="true">
+        <path d="M32 6 L54 52 H10 Z" fill="var(--rock-1)"/>
+        <path d="M32 6 L41 25 L36 22 L31 30 L26 23 L21 27 Z" fill="var(--peak)"/>
+        <path d="M48 24 L62 52 H40 Z" fill="var(--rock-2)"/>
+        <path d="M48 24 L53 34 L50 32 L46 36 Z" fill="var(--peak-2)"/>
+        <path d="M16 30 L28 52 H4 Z" fill="var(--rock-2)"/>
+        <path d="M16 30 L21 40 L18 38 L14 42 Z" fill="var(--peak-2)"/>
+      </svg>
+      <h1>نادي جبال الحجاز</h1>
+      <p>كل تمرين خطوة في الطريق. سجّل دخولك وابدأ الصعود.</p>
+    </div>
+
+    <div class="gate-actions">
+      <button class="btn btn-google" id="btnGoogle">
+        <svg viewBox="0 0 24 24" aria-hidden="true" width="20" height="20">
+          <path fill="#4285F4" d="M23 12.27c0-.79-.07-1.54-.2-2.27H12v4.51h6.17a5.27 5.27 0 0 1-2.29 3.46v2.88h3.7C21.74 18.87 23 15.85 23 12.27z"/>
+          <path fill="#34A853" d="M12 23c3.1 0 5.7-1.03 7.6-2.79l-3.71-2.88c-1.03.69-2.35 1.1-3.89 1.1-2.99 0-5.53-2.02-6.43-4.74H1.72v2.97A11 11 0 0 0 12 23z"/>
+          <path fill="#FBBC05" d="M5.57 13.69a6.6 6.6 0 0 1 0-4.21V6.51H1.72a11 11 0 0 0 0 9.87l3.85-2.69z"/>
+          <path fill="#EA4335" d="M12 5.55c1.69 0 3.2.58 4.39 1.72l3.29-3.29C17.7 2.11 15.1 1 12 1 7.7 1 3.99 3.47 1.72 6.51l3.85 2.97C6.47 7.57 9.01 5.55 12 5.55z"/>
+        </svg>
+        <span>تسجيل الدخول بحساب جوجل</span>
+      </button>
+      <button class="btn btn-quiet" id="btnGuest">أكمل بدون حساب على هذا الجهاز</button>
+      <p class="gate-note" id="gateNote"></p>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= APP ======================= -->
+<div id="app" class="app" hidden>
+
+  <header class="top">
+    <svg class="mark sm" viewBox="0 0 64 64" aria-hidden="true">
+      <path d="M32 6 L54 52 H10 Z" fill="var(--rock-1)"/>
+      <path d="M32 6 L41 25 L36 22 L31 30 L26 23 L21 27 Z" fill="var(--peak)"/>
+      <path d="M48 24 L62 52 H40 Z" fill="var(--rock-2)"/>
+      <path d="M16 30 L28 52 H4 Z" fill="var(--rock-2)"/>
+    </svg>
+    <div class="top-title">
+      <strong>نادي جبال الحجاز</strong>
+      <span id="topSub">—</span>
+    </div>
+    <button class="avatar" id="btnAccount" aria-label="الحساب"><span id="avatarText">؟</span></button>
+  </header>
+
+  <main id="main">
+
+    <!-- ---------- HOME ---------- -->
+    <section class="view" id="v-home">
+      <div class="streak">
+        <svg class="streak-ridge" viewBox="0 0 320 90" preserveAspectRatio="none" aria-hidden="true">
+          <path d="M0 90 L38 52 L62 66 L104 26 L132 48 L166 12 L200 44 L238 30 L272 58 L300 40 L320 62 L320 90Z" fill="var(--ridge-fill)"/>
+          <path d="M0 90 L38 52 L62 66 L104 26 L132 48 L166 12 L200 44 L238 30 L272 58 L300 40 L320 62" fill="none" stroke="var(--ridge-line)" stroke-width="2"/>
+        </svg>
+        <div class="streak-body">
+          <p class="streak-label">أيام متتالية</p>
+          <p class="streak-num"><span id="streakNum">0</span></p>
+          <p class="streak-sub" id="streakSub">ابدأ اليوم وخلّ العدّاد يمشي</p>
+        </div>
+        <div class="week" id="week"></div>
+      </div>
+
+      <div class="quick" id="quickWrap">
+        <p class="quick-eyebrow">تمرين اليوم</p>
+        <h2 class="quick-name" id="quickName">—</h2>
+        <p class="quick-meta" id="quickMeta">—</p>
+        <button class="btn btn-go" id="btnQuickStart">ابدأ التمرين</button>
+      </div>
+
+      <div class="stats">
+        <div><strong id="stAll">0</strong><small>تمرين مكتمل</small></div>
+        <div><strong id="stBest">0</strong><small>أطول سلسلة</small></div>
+        <div><strong id="stMin">0</strong><small>دقيقة تدريب</small></div>
+      </div>
+    </section>
+
+    <!-- ---------- PLANS ---------- -->
+    <section class="view" id="v-plans" hidden>
+      <div class="head-row">
+        <h2>الجداول</h2>
+        <button class="btn btn-sm" id="btnNewPlan">جدول جديد</button>
+      </div>
+      <ul class="plan-list" id="planList"></ul>
+    </section>
+
+    <!-- ---------- BUILDER ---------- -->
+    <section class="view" id="v-build" hidden>
+      <div class="head-row">
+        <h2 id="buildTitle">جدول جديد</h2>
+        <button class="btn btn-sm btn-quiet" id="btnBuildCancel">رجوع</button>
+      </div>
+
+      <div class="card">
+        <label class="field">
+          <span>اسم الجدول</span>
+          <input type="text" id="planName" placeholder="مثال: جدول الصباح" autocomplete="off">
+        </label>
+
+        <div class="field-row">
+          <label class="field">
+            <span>المدة المستهدفة</span>
+            <select id="planTarget">
+              <option value="10">10 دقائق</option>
+              <option value="15">15 دقيقة</option>
+              <option value="20" selected>20 دقيقة</option>
+              <option value="25">25 دقيقة</option>
+              <option value="30">30 دقيقة</option>
+              <option value="45">45 دقيقة</option>
+              <option value="0">بدون تحديد</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>تكرار المجموعة</span>
+            <select id="planRepeat">
+              <option value="1">مرة واحدة</option>
+              <option value="2">مرتين</option>
+              <option value="3">٣ مرات</option>
+              <option value="4">٤ مرات</option>
+              <option value="5">٥ مرات</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="field-row">
+          <label class="field">
+            <span>الإحماء</span>
+            <select id="planWarm">
+              <option value="0">بدون</option>
+              <option value="60">دقيقة</option>
+              <option value="120">دقيقتان</option>
+              <option value="180" selected>٣ دقائق</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>التهدئة</span>
+            <select id="planCool">
+              <option value="0">بدون</option>
+              <option value="60">دقيقة</option>
+              <option value="120" selected>دقيقتان</option>
+              <option value="180">٣ دقائق</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <div class="gauge" id="gauge">
+        <div class="gauge-row"><span>مدة الجدول</span><b id="gaugeNow">0:00</b></div>
+        <div class="gauge-bar"><i id="gaugeFill"></i></div>
+        <p class="gauge-note" id="gaugeNote">أضف تمارين للجدول</p>
+      </div>
+
+      <h3 class="sub-head">التمارين <small id="itemCount"></small></h3>
+      <ul class="build-list" id="buildList"></ul>
+      <p class="empty" id="buildEmpty">الجدول فاضي. اختر تمريناً من الأسفل.</p>
+
+      <h3 class="sub-head">أضف تمريناً</h3>
+      <div class="picker" id="picker"></div>
+      <label class="field" style="margin-top:12px">
+        <span>تمرين من عندك</span>
+        <span class="inline-add">
+          <input type="text" id="customName" placeholder="اسم التمرين" autocomplete="off">
+          <button class="btn btn-sm" id="btnCustomAdd">أضف</button>
+        </span>
+      </label>
+
+      <div class="build-actions">
+        <button class="btn btn-go" id="btnBuildSave">احفظ الجدول</button>
+        <button class="btn btn-danger" id="btnBuildDelete" hidden>احذف</button>
+      </div>
+    </section>
+
+    <!-- ---------- RUNNER ---------- -->
+    <section class="view run" id="v-run" hidden>
+      <div class="run-card">
+        <svg class="climb" id="climb" viewBox="0 0 320 120" preserveAspectRatio="none" aria-hidden="true">
+          <path d="M4 112 L52 86 L92 94 L136 52 L176 70 L214 30 L256 48 L316 8 L316 120 L4 120 Z" fill="var(--ridge-fill)"/>
+          <path id="climbPath" d="M4 112 L52 86 L92 94 L136 52 L176 70 L214 30 L256 48 L316 8"
+                fill="none" stroke="var(--ridge-line)" stroke-width="2.5" stroke-linejoin="round"/>
+          <path id="climbDone" d="M4 112 L52 86 L92 94 L136 52 L176 70 L214 30 L256 48 L316 8"
+                fill="none" stroke="var(--accent)" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>
+          <circle id="climbDot" cx="4" cy="112" r="6" fill="var(--accent)" stroke="var(--panel)" stroke-width="3"/>
+        </svg>
+
+        <p class="run-phase" id="runPhase">جاهز</p>
+        <h2 class="run-move" id="runMove">—</h2>
+        <p class="run-clock" id="runClock">0:00</p>
+        <p class="run-tip" id="runTip">اضغط ابدأ</p>
+        <p class="run-next" id="runNext"></p>
+      </div>
+
+      <div class="run-meta">
+        <span id="runLeft">—</span>
+        <span id="runRight">—</span>
+      </div>
+      <div class="ticks" id="ticks"></div>
+
+      <div class="run-controls">
+        <button class="btn btn-go" id="btnPrimary">ابدأ</button>
+        <button class="btn btn-quiet" id="btnSkip">التالي</button>
+        <button class="btn btn-quiet" id="btnStop">إنهاء</button>
+      </div>
+      <label class="switch"><input type="checkbox" id="optSound" checked><span>صوت التنبيه</span></label>
+    </section>
+
+    <!-- ---------- HISTORY ---------- -->
+    <section class="view" id="v-log" hidden>
+      <div class="head-row"><h2>السجل</h2></div>
+      <ul class="log" id="log"></ul>
+      <p class="empty" id="logEmpty">ما في تمارين مسجّلة بعد.</p>
+    </section>
+
+  </main>
+
+  <nav class="tabbar" id="tabbar">
+    <button data-view="home" class="on"><svg viewBox="0 0 24 24"><path d="M3 20 L9 9 L13 14 L17 6 L21 20Z"/></svg><span>الرئيسية</span></button>
+    <button data-view="plans"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>الجداول</span></button>
+    <button data-view="log"><svg viewBox="0 0 24 24"><path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="8"/></svg><span>السجل</span></button>
+  </nav>
+</div>
+
+<!-- account sheet -->
+<div class="sheet-wrap" id="sheet" hidden>
+  <div class="sheet">
+    <p class="sheet-name" id="sheetName">—</p>
+    <p class="sheet-mail" id="sheetMail">—</p>
+    <p class="sheet-sync" id="sheetSync">—</p>
+    <button class="btn btn-quiet" id="btnCloseSheet">إغلاق</button>
+    <button class="btn btn-danger" id="btnSignOut">تسجيل الخروج</button>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="firebase-config.js"></script>
+<script type="module" src="assets/app.js"></script>
+</body>
+</html>
