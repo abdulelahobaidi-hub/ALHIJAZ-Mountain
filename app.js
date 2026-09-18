@@ -53,6 +53,23 @@ const mmss = s => { s = Math.max(0, Math.ceil(s - 0.001)); return Math.floor(s/6
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const dayKey = d => { const x = new Date(d); return x.getFullYear()+"-"+pad(x.getMonth()+1)+"-"+pad(x.getDate()); };
 
+/* custom confirm sheet — avoids the browser's own dialog */
+function ask(title, text, yes = "نعم، احذف"){
+  return new Promise(resolve => {
+    $("cfTitle").textContent = title;
+    $("cfText").textContent = text;
+    $("cfYes").textContent = yes;
+    $("confirm").hidden = false;
+    const done = v => {
+      $("confirm").hidden = true;
+      $("cfYes").onclick = null; $("cfNo").onclick = null;
+      resolve(v);
+    };
+    $("cfYes").onclick = () => done(true);
+    $("cfNo").onclick  = () => done(false);
+  });
+}
+
 function toast(msg, ms = 2600){
   const t = $("toast");
   t.textContent = msg; t.hidden = false;
@@ -143,6 +160,16 @@ async function removePlan(id){
   if (S.mode === "cloud" && S.fb){
     const { db, m } = S.fb;
     try { await m.deleteDoc(m.doc(db, "users", S.user.uid, "plans", id)); } catch(err){ console.error(err); }
+  }
+}
+
+async function deleteSession(id){
+  S.sessions = S.sessions.filter(s => s.id !== id);
+  lsSet(LK.sessions, S.sessions);
+  if (S.mode === "cloud" && S.fb){
+    const { db, m } = S.fb;
+    try { await m.deleteDoc(m.doc(db, "users", S.user.uid, "sessions", id)); }
+    catch(err){ console.error(err); toast("انحذف محلياً — تعذّر الحذف من السحابة"); }
   }
 }
 
@@ -300,12 +327,13 @@ function renderHome(){
     st.todayDone     ? "أنجزت تمرين اليوم — استمر" :
                        "درّب اليوم عشان ما تنكسر السلسلة";
 
-  const names = ["أحد","إثنين","ثلاثاء","أربعاء","خميس","جمعة","سبت"];
+  const names = ["ح","ن","ث","ر","خ","ج","س"];   // أحد إثنين ثلاثاء أربعاء خميس جمعة سبت
   let h = "";
   for (let i = 6; i >= 0; i--){
     const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - i);
     const on = st.days.has(dayKey(d));
-    h += `<div class="day${on ? " on" : ""}${i === 0 ? " today" : ""}"><i></i>${names[d.getDay()]}</div>`;
+    h += `<div class="day${on ? " on" : ""}${i === 0 ? " is-today" : ""}">`
+       + `<i><svg viewBox="0 0 24 24"><path d="m5.5 12.5 4.2 4.2 8.8-9"/></svg></i>${names[d.getDay()]}</div>`;
   }
   $("week").innerHTML = h;
 
@@ -332,9 +360,9 @@ function renderPlans(){
   S.plans.forEach(p => {
     const li = document.createElement("li");
     li.innerHTML =
-      `<button class="plan-go" aria-label="ابدأ ${p.name}">▶</button>
+      `<button class="plan-go" aria-label="ابدأ التمرين"><svg class="ic"><use href="#i-play"/></svg></button>
        <div class="plan-main"><b></b><span>المدة ${mmss(planSeconds(p))} · ${planRounds(p)} جولة</span></div>
-       <button class="plan-edit" aria-label="تعديل">✎</button>`;
+       <button class="plan-edit" aria-label="تعديل"><svg class="ic"><use href="#i-edit"/></svg></button>`;
     li.querySelector("b").textContent = p.name;
     li.querySelector(".plan-go").onclick = () => startRun(p);
     li.querySelector(".plan-main").onclick = () => startRun(p);
@@ -522,7 +550,9 @@ function renderRun(){
     el.classList.toggle("now", !r.finished && n === cr && seg.kind === "work");
   });
 
-  $("btnPrimary").textContent = r.finished ? "من جديد" : (r.running ? "إيقاف" : (total > 0 ? "أكمل" : "ابدأ"));
+  const label = r.finished ? "من جديد" : (r.running ? "إيقاف" : (total > 0 ? "أكمل" : "ابدأ"));
+  const icon  = r.running ? "i-pause" : "i-play";
+  $("btnPrimary").innerHTML = `<svg class="ic"><use href="#${icon}"/></svg><span>${label}</span>`;
 }
 
 /* sound */
@@ -612,6 +642,8 @@ function renderLog(){
   const ul = $("log"); ul.innerHTML = "";
   $("logEmpty").hidden = S.sessions.length > 0;
   ul.hidden = S.sessions.length === 0;
+  $("logCount").textContent = S.sessions.length ? `${S.sessions.length} تمرين` : "";
+
   S.sessions.forEach(s => {
     const d = new Date(s.at);
     const date = d.toLocaleDateString("ar-SA-u-nu-latn-ca-gregory", { weekday:"long", day:"numeric", month:"long" });
@@ -619,9 +651,17 @@ function renderLog(){
     const li = document.createElement("li");
     if (s.completed === false) li.className = "partial";
     li.innerHTML =
-      `<span><b class="pn"></b><small>${date} · ${time}</small></span>
-       <span class="end"><b>${s.rounds}/${s.total || s.rounds} جولة</b><small>المدة ${mmss(s.secs)}</small></span>`;
-    li.querySelector(".pn").textContent = s.planName || "تمرين";
+      `<span class="log-ic"><svg class="ic"><use href="#i-${s.completed === false ? "timer" : "check"}"/></svg></span>
+       <span class="log-main"><b></b><span>${date} · ${time} · ${s.rounds}/${s.total || s.rounds} جولة · ${mmss(s.secs)}</span></span>
+       <button class="log-del" aria-label="احذف هذا التمرين"><svg class="ic"><use href="#i-trash"/></svg></button>`;
+    li.querySelector("b").textContent = s.planName || "تمرين";
+    li.querySelector(".log-del").onclick = async () => {
+      const ok = await ask("حذف التمرين", `${s.planName || "تمرين"} — ${date}. الحذف يؤثر على عدّاد الأيام المتتالية.`);
+      if (!ok) return;
+      await deleteSession(s.id);
+      renderLog();
+      toast("انحذف التمرين من السجل");
+    };
     ul.appendChild(li);
   });
 }
@@ -641,7 +681,8 @@ $("btnNewPlan").onclick    = () => openBuilder(null);
 $("btnBuildCancel").onclick = () => show("plans");
 $("btnBuildSave").onclick   = saveBuilder;
 $("btnBuildDelete").onclick = async () => {
-  if (!confirm("تحذف هذا الجدول؟")) return;
+  const ok = await ask("حذف الجدول", `${S.editing.name || "هذا الجدول"} — ما راح يظهر في قائمة الجداول.`);
+  if (!ok) return;
   await removePlan(S.editing.id);
   toast("انحذف الجدول");
   show("plans");
@@ -663,10 +704,11 @@ $("btnSkip").onclick = () => {
   if (r.idx >= r.segs.length){ r.idx = r.segs.length - 1; finishRun(true); return; }
   renderRun();
 };
-$("btnStop").onclick = () => {
+$("btnStop").onclick = async () => {
   if (!S.run) return;
   if (S.run.finished){ S.run = null; show("home"); return; }
-  if (!confirm("تنهي التمرين؟ اللي أنجزته ينحفظ في السجل.")) return;
+  const ok = await ask("إنهاء التمرين", "اللي أنجزته ينحفظ في السجل.", "أنهِ التمرين");
+  if (!ok) return;
   finishRun(false);
 };
 
@@ -682,6 +724,7 @@ $("btnAccount").onclick = () => {
 $("btnCloseSheet").onclick = () => { $("sheet").hidden = true; };
 $("btnSignOut").onclick = signOutNow;
 $("sheet").addEventListener("click", e => { if (e.target.id === "sheet") $("sheet").hidden = true; });
+$("confirm").addEventListener("click", e => { if (e.target.id === "confirm") $("cfNo").click(); });
 
 /* ---------- boot ---------- */
 (async function boot(){
