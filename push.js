@@ -62,19 +62,19 @@ async function saveConf(extra = {}){
 const errCode = e => (e && (e.code || e.name)) ? (e.code || e.name) : String((e && e.message) || e).slice(0, 80);
 
 async function registerDevice(){
-  /* ١ — عامل الخدمة */
-  try {
-    if (!swReg) swReg = await navigator.serviceWorker.register("./firebase-messaging-sw.js");
-    await navigator.serviceWorker.ready;
-  } catch(e){ return { ok:false, step:"sw", code: errCode(e) }; }
-
-  /* ٢ — إذن الإشعارات */
+  /* ١ — إذن الإشعارات أولاً: سفاري تشترط أن يُطلب أثناء نفس اللمسة */
   let perm = Notification.permission;
   if (perm !== "granted"){
     try { perm = await Notification.requestPermission(); }
     catch(e){ return { ok:false, step:"perm", code: errCode(e) }; }
   }
   if (perm !== "granted") return { ok:false, step:"perm", code: perm };
+
+  /* ٢ — عامل الخدمة */
+  try {
+    if (!swReg) swReg = await navigator.serviceWorker.register("./firebase-messaging-sw.js");
+    await navigator.serviceWorker.ready;
+  } catch(e){ return { ok:false, step:"sw", code: errCode(e) }; }
 
   /* ٣ — رمز الجهاز من FCM */
   let token = "", messaging = null, msgM = null;
@@ -153,10 +153,11 @@ export function wirePush(){
       note(L("وقّفنا التذكير."));
       return;
     }
-    sw.disabled = true;
     note(L("لحظة…"));
     try {
-      const r = await registerDevice();
+      const p = registerDevice();          // بدون await قبلها حتى تبقى لمسة المستخدم فعّالة
+      sw.disabled = true;
+      const r = await p;
       if (!r.ok){
         sw.checked = false;
         console.error("push step:", r.step, r.code);
