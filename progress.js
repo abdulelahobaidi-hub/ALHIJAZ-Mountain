@@ -230,6 +230,93 @@ function liftsHTML(){
     </div>`;
 }
 
+/* ---------- الوزن والقياسات ---------- */
+const fmtN = n => (Math.round(n * 10) / 10).toString();
+
+function bodyLine(rows){                       // rows: من الأقدم للأحدث
+  const W = 320, H = 132, padT = 14, padB = 24, padX = 14;
+  const ys = rows.map(r => r.weight);
+  const lo = Math.min(...ys), hi = Math.max(...ys);
+  const span = (hi - lo) || 2;
+  const y0 = lo - span * 0.35, y1 = hi + span * 0.35;
+  const rtl = document.documentElement.dir !== "ltr";
+  const n = rows.length;
+  const stepX = n > 1 ? (W - padX * 2) / (n - 1) : 0;
+  const X = i => rtl ? (W - padX - i * stepX) : (padX + i * stepX);
+  const Y = v => padT + (1 - (v - y0) / (y1 - y0)) * (H - padT - padB);
+
+  const pts = rows.map((r, i) => [X(i), Y(r.weight)]);
+  const path = pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ");
+  const area = n > 1 ? `${path} L${pts[n-1][0].toFixed(1)} ${H-padB} L${pts[0][0].toFixed(1)} ${H-padB} Z` : "";
+  const fmtD = at => new Date(at).toLocaleDateString(LOC(), { day:"numeric", month:"short" });
+
+  return `
+    <svg class="bline" viewBox="0 0 ${W} ${H}" role="img"
+         aria-label="${L("تغيّر وزنك عبر الوقت")}">
+      <line class="bl-grid" x1="0" y1="${H-padB}" x2="${W}" y2="${H-padB}"/>
+      ${area ? `<path class="bl-area" d="${area}"/>` : ""}
+      ${n > 1 ? `<path class="bl-line" d="${path}"/>` : ""}
+      ${pts.map((p, i) => `
+        <circle class="bl-dot${i === n-1 ? " last" : ""}" cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="4.5"
+          data-tip="${fmtD(rows[i].at)} · ${fmtN(rows[i].weight)} ${L("كجم")}"/>`).join("")}
+    </svg>
+    <div class="chart-foot"><span>${fmtD(rows[0].at)}</span><span>${fmtD(rows[n-1].at)}</span></div>`;
+}
+
+function deltaChip(now, was, unit, lowerBetter){
+  if (!now || !was || now === was) return "";
+  const d = Math.round((now - was) * 10) / 10;
+  const good = lowerBetter ? d < 0 : d > 0;
+  return `<span class="bd-delta ${good ? "good" : "up"}">${d > 0 ? "+" : ""}${fmtN(d)} ${unit}</span>`;
+}
+
+function bodyHTML(){
+  const all = (C.S.body || []).slice().sort((a,b) => a.at - b.at);
+  if (!all.length){
+    return `
+      <div class="card chart">
+        <div class="chart-head"><h3>${L("وزنك وقياساتك")}</h3>
+          <button class="btn-mini" id="btnBody">${L("أضف قياس")}</button></div>
+        <p class="chart-sub">${L("سجّل وزنك اليوم وشوف التغيّر مع تمارينك.")}</p>
+      </div>`;
+  }
+  const last = all[all.length-1];
+  const wRows = all.filter(r => r.weight > 0);
+  const base = wRows.length > 1 ? wRows[0] : null;   // أول قياس — المقارنة منه
+
+  const rowsHTML = [
+    ["waist", L("الخصر"), L("سم"), true],
+    ["chest", L("الصدر"), L("سم"), false],
+    ["arm",   L("الذراع"), L("سم"), false]
+  ].filter(([k]) => last[k] > 0).map(([k, name, unit, lower]) => {
+    const was = all.find(r => r[k] > 0);
+    return `<div class="bd-m"><span>${name}</span><b>${fmtN(last[k])}<small>${unit}</small></b>
+              ${was && was !== last ? deltaChip(last[k], was[k], unit, lower) : ""}</div>`;
+  }).join("");
+
+  return `
+    <div class="card chart">
+      <div class="chart-head"><h3>${L("وزنك وقياساتك")}</h3>
+        <button class="btn-mini" id="btnBody">${L("أضف قياس")}</button></div>
+      ${last.weight ? `
+        <p class="bd-now"><b>${fmtN(last.weight)}</b><small>${L("كجم")}</small>
+          ${base ? deltaChip(last.weight, base.weight, L("كجم"), true) : ""}</p>
+        ${base ? `<p class="bd-since">${L("مقارنة بأول قياس")}</p>` : ""}` : ""}
+      ${wRows.length > 1 ? bodyLine(wRows) : ""}
+      ${rowsHTML ? `<div class="bd-ms">${rowsHTML}</div>` : ""}
+      <div class="bd-log">` + all.slice().reverse().slice(0,4).map(r => `
+        <div class="bd-line">
+          <span>${new Date(r.at).toLocaleDateString(LOC(), { day:"numeric", month:"long" })}</span>
+          <b>${[r.weight && fmtN(r.weight) + " " + L("كجم"),
+                r.waist && L("الخصر") + " " + fmtN(r.waist),
+                r.chest && L("الصدر") + " " + fmtN(r.chest),
+                r.arm   && L("الذراع") + " " + fmtN(r.arm)].filter(Boolean).join(" · ")}</b>
+          <button class="bd-del" data-id="${r.id}" aria-label="${L("حذف القياس")}">
+            <svg class="ic"><use href="#i-trash"/></svg></button>
+        </div>`).join("") + `</div>
+    </div>`;
+}
+
 function kpisHTML(){
   const done = C.S.sessions.filter(s => s.completed !== false);
   const m0 = new Date(); m0.setDate(1); m0.setHours(0,0,0,0);
@@ -255,13 +342,19 @@ export function renderProgress(){
   if (!box) return;
   const done = C.S.sessions.filter(s => s.completed !== false);
   if (!done.length){
-    box.innerHTML = `<p class="empty">${L("خلّص أول تمرين ويبدأ التحليل يبني نفسه.")}</p>` + badgesHTML();
+    box.innerHTML = `<p class="empty">${L("خلّص أول تمرين ويبدأ التحليل يبني نفسه.")}</p>`
+      + bodyHTML() + badgesHTML();
   } else {
-    box.innerHTML = kpisHTML() + columnsHTML() + heatHTML() + liftsHTML() + plansHTML() + badgesHTML();
+    box.innerHTML = kpisHTML() + columnsHTML() + heatHTML() + bodyHTML() + liftsHTML() + plansHTML() + badgesHTML();
   }
   wireTips(box);
   const rm = document.getElementById("btnRM");
   if (rm && C.openRM) rm.onclick = () => C.openRM();
+  const bd = document.getElementById("btnBody");
+  if (bd && C.openBody) bd.onclick = () => C.openBody();
+  box.querySelectorAll(".bd-del").forEach(el => {
+    el.onclick = () => C.delBody && C.delBody(el.dataset.id);
+  });
 }
 
 /* تلميح عند اللمس أو المرور */

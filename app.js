@@ -9,6 +9,7 @@ import { initSocial, socialBoot, socialTeardown, socialAfterWorkout,
          publishMyPlan, unpublishMyPlan } from "./social.js";
 import { initProgress, renderProgress, badgeCount } from "./progress.js";
 import { L, LOC, SPEECH, lang, setLang, translateStatic } from "./i18n.js";
+import { shareCard } from "./share.js";
 
 translateStatic();
 
@@ -78,7 +79,8 @@ const S = {
   run: null,
   fb: null,              // {auth, db, mods}
   freeze: { credits: 0, used: {}, earnedUpto: 0 },  // تجميد السلسلة
-  week: ["","","","","","",""]                     // خطة الأسبوع: "" بدون · "rest" راحة · معرّف جدول
+  week: ["","","","","","",""],                    // خطة الأسبوع: "" بدون · "rest" راحة · معرّف جدول
+  body: []                                         // قياسات الجسم
 };
 
 const $ = id => document.getElementById(id);
@@ -158,7 +160,7 @@ function buildSegments(p){
 /* ============================================================
    STORAGE — local always; cloud when signed in
    ============================================================ */
-const LK = { plans:"hejaz.plans", sessions:"hejaz.sessions", mode:"hejaz.mode", freeze:"hejaz.freeze", week:"hejaz.week" };
+const LK = { plans:"hejaz.plans", sessions:"hejaz.sessions", mode:"hejaz.mode", freeze:"hejaz.freeze", week:"hejaz.week", body:"hejaz.body" };
 
 function lsGet(k, fb){ try { const r = localStorage.getItem(k); return r ? JSON.parse(r) : fb; } catch(e){ return fb; } }
 function lsSet(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
@@ -201,6 +203,18 @@ async function loadAll(){
       if (snap.exists() && Array.isArray(snap.data().days)) S.week = snap.data().days;
     } catch(err){ console.error("week", err); }
   }
+
+  /* قياسات الجسم */
+  S.body = lsGet(LK.body, []);
+  if (S.mode === "cloud" && S.fb){
+    const { db, m } = S.fb;
+    try {
+      const snap = await m.getDocs(m.query(m.collection(db, "users", S.user.uid, "body"),
+                                           m.orderBy("at","desc"), m.limit(200)));
+      S.body = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+    } catch(err){ console.error("body", err); }
+  }
+  S.body.sort((a,b) => b.at - a.at);
 
   if (!S.plans.length){
     const p = defaultPlan();
@@ -456,6 +470,54 @@ async function saveWeek(){
     try { await m.setDoc(m.doc(db, "users", S.user.uid, "meta", "week"), { days: S.week }); }
     catch(err){ console.error("saveWeek", err); }
   }
+}
+
+/* ---------------- قياسات الجسم ---------------- */
+async function saveBody(entry){
+  S.body.unshift(entry);
+  S.body.sort((a,b) => b.at - a.at);
+  lsSet(LK.body, S.body);
+  if (S.mode === "cloud" && S.fb){
+    const { db, m } = S.fb;
+    try { await m.setDoc(m.doc(db, "users", S.user.uid, "body", entry.id), entry); }
+    catch(err){ console.error("saveBody", err); }
+  }
+}
+async function delBody(id){
+  const row = S.body.find(b => b.id === id);
+  const ok = await ask(L("حذف القياس"), L("سينحذف قياس {0}.",
+    new Date(row ? row.at : Date.now()).toLocaleDateString(LOC(), { day:"numeric", month:"long" })));
+  if (!ok) return;
+  S.body = S.body.filter(b => b.id !== id);
+  lsSet(LK.body, S.body);
+  if (S.mode === "cloud" && S.fb){
+    const { db, m } = S.fb;
+    try { await m.deleteDoc(m.doc(db, "users", S.user.uid, "body", id)); } catch(err){ console.error(err); }
+  }
+  renderProgress();
+  toast(L("انحذف القياس"));
+}
+function openBody(){
+  const last = S.body[0] || {};
+  $("bdW").value = last.weight || "";
+  $("bdWaist").value = last.waist || "";
+  $("bdChest").value = last.chest || "";
+  $("bdArm").value = last.arm || "";
+  $("bodySheet").hidden = false;
+  setTimeout(() => $("bdW").focus(), 60);
+}
+async function submitBody(){
+  const num = v => { const n = parseFloat(String(v).replace(",", ".")); return isFinite(n) && n > 0 ? Math.round(n*10)/10 : 0; };
+  const e = {
+    id: uid(), at: Date.now(),
+    weight: num($("bdW").value), waist: num($("bdWaist").value),
+    chest:  num($("bdChest").value), arm: num($("bdArm").value)
+  };
+  if (!e.weight && !e.waist && !e.chest && !e.arm){ toast(L("اكتب قياساً واحداً على الأقل")); return; }
+  $("bodySheet").hidden = true;
+  await saveBody(e);
+  renderProgress();
+  toast(L("انحفظ القياس"));
 }
 
 /* جدول اليوم حسب خطة الأسبوع */
@@ -939,6 +1001,9 @@ function renderRun(){
     el.classList.toggle("now", !r.finished && n === cr && seg.kind === "work");
   });
 
+  const sh = $("btnShareRun");
+  if (sh) sh.hidden = !(r.finished && lastSess);
+
   const label = r.finished ? L("من جديد")
     : (lifting && r.running) ? L("تم")
     : (r.running ? L("إيقاف") : (total > 0 ? L("أكمل") : L("ابدأ")));
@@ -1078,6 +1143,7 @@ function liftSummary(uptoIdx){
   return { lifts, volume: Math.round(lifts.reduce((a,l) => a + l.sets*l.reps*l.weight, 0)) };
 }
 
+let lastSess = null;
 async function finishRun(complete){
   const r = S.run; if (!r) return;
   r.running = false; stopTimer();
@@ -1093,6 +1159,7 @@ async function finishRun(complete){
       rounds, total: r.rounds, secs: Math.round(secs), completed: !!complete
     };
     if (volume > 0){ sess.volume = volume; sess.lifts = lifts; }
+    lastSess = sess;
     await saveSession(sess);
     await refreshStreak();
     socialAfterWorkout(sess);
@@ -1247,6 +1314,41 @@ $("sheet").addEventListener("click", e => { if (e.target.id === "sheet") $("shee
 $("confirm").addEventListener("click", e => { if (e.target.id === "confirm") $("cfNo").click(); });
 
 /* ---------- boot ---------- */
+/* ---------------- بطاقة الإنجاز ---------------- */
+const dateLabel = at => new Date(at).toLocaleDateString(LOC(), { day:"numeric", month:"long", year:"numeric" });
+
+function shareStreak(){
+  const st = streakInfo();
+  const done = S.sessions.filter(s => s.completed !== false);
+  shareCard({
+    eyebrow: L("سلسلة متواصلة"),
+    big: st.current,
+    unit: st.current === 1 ? L("يوم واحد") : L("يوماً متتالياً"),
+    stats: [
+      { v: done.length, l: L("تمرين") },
+      { v: Math.round(S.sessions.reduce((a,s) => a + (s.secs||0), 0) / 60), l: L("دقيقة") },
+      { v: badgeCount(), l: L("شارة") }
+    ],
+    date: dateLabel(Date.now())
+  });
+}
+
+function shareWorkout(sess){
+  if (!sess) return;
+  const st = streakInfo();
+  shareCard({
+    eyebrow: L(sess.planName || "تمرين"),
+    big: mmss(sess.secs),
+    unit: L("{0} جولة", sess.rounds),
+    stats: [
+      { v: st.current, l: L("يوم متتالٍ") },
+      sess.volume ? { v: sess.volume, l: L("كجم") } : null,
+      { v: Math.round(sess.secs / 60), l: L("دقيقة") }
+    ].filter(Boolean),
+    date: dateLabel(sess.at)
+  });
+}
+
 /* ---------------- حاسبة أقصى وزن (إيبلي) ---------------- */
 const rmValue = (w, r) => Math.round((+w||0) * (1 + Math.max(1,+r||1) / 30) * 2) / 2;
 function renderRM(){
@@ -1266,7 +1368,17 @@ function openRM(){
 $("rmNo").onclick = () => { $("rm").hidden = true; };
 $("rm").addEventListener("click", e => { if (e.target.id === "rm") $("rm").hidden = true; });
 
-const CTX = { S, toast, ask, dayKey, streakInfo, show, planRounds, planSeconds, addPlanCopy, badgeCount, openRM };
+$("btnShareStreak").onclick = shareStreak;
+$("btnShareRun").onclick = () => shareWorkout(lastSess);
+$("shNo").onclick = () => { $("shareSheet").hidden = true; };
+$("shareSheet").addEventListener("click", e => { if (e.target.id === "shareSheet") $("shareSheet").hidden = true; });
+
+$("bdSave").onclick = submitBody;
+$("bdNo").onclick = () => { $("bodySheet").hidden = true; };
+$("bodySheet").addEventListener("click", e => { if (e.target.id === "bodySheet") $("bodySheet").hidden = true; });
+
+const CTX = { S, toast, ask, dayKey, streakInfo, show, planRounds, planSeconds, addPlanCopy,
+              badgeCount, openRM, openBody, delBody };
 initSocial(CTX);
 initProgress(CTX);
 

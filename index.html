@@ -139,6 +139,9 @@
         <div class="streak-top">
           <span class="streak-chip"><svg class="ic"><use href="#i-flame"/></svg> أيام متتالية</span>
           <span class="streak-chip freeze" id="freezeChip">❄️</span>
+          <button class="streak-share" id="btnShareStreak" aria-label="شارك إنجازك">
+            <svg class="ic"><use href="#i-share"/></svg>
+          </button>
         </div>
         <p class="streak-num" id="streakNum">0</p>
         <p class="streak-sub" id="streakSub">ابدأ اليوم وخلّ العدّاد يمشي</p>
@@ -329,6 +332,9 @@
         <button class="btn btn-soft btn-sq" id="btnSkip" aria-label="التالي"><svg class="ic"><use href="#i-next"/></svg></button>
         <button class="btn btn-soft btn-sq" id="btnStop" aria-label="إنهاء"><svg class="ic"><use href="#i-stop"/></svg></button>
       </div>
+      <button class="btn btn-soft" id="btnShareRun" hidden>
+        <svg class="ic"><use href="#i-share"/></svg><span>شارك إنجازك</span>
+      </button>
       <div class="switch-row">
         <label class="switch"><input type="checkbox" id="optSound" checked><span>نغمة التنبيه</span></label>
         <label class="switch"><input type="checkbox" id="optVoice" checked><span>صوت يقرأ التمرين</span></label>
@@ -439,6 +445,39 @@
     <p class="sheet-mail" id="cfText">—</p>
     <button class="btn btn-danger" id="cfYes">نعم، احذف</button>
     <button class="btn btn-soft" id="cfNo">رجوع</button>
+  </div>
+</div>
+
+<!-- بطاقة الإنجاز -->
+<div class="sheet-wrap" id="shareSheet" hidden>
+  <div class="sheet">
+    <p class="sheet-name">بطاقة إنجازك</p>
+    <img class="sh-img" id="shImg" alt="">
+    <button class="btn btn-primary" id="shGo"><svg class="ic"><use href="#i-share"/></svg><span>شارك</span></button>
+    <button class="btn btn-soft" id="shSave">احفظ الصورة</button>
+    <button class="btn btn-ghost" id="shNo">إغلاق</button>
+  </div>
+</div>
+
+<!-- قياسات الجسم -->
+<div class="sheet-wrap" id="bodySheet" hidden>
+  <div class="sheet">
+    <p class="sheet-name">قياس جديد</p>
+    <p class="sheet-mail">سجّل وزنك ومقاساتك — اترك أي خانة فاضية إذا ما قستها.</p>
+    <div class="rm-row">
+      <label class="field"><span>الوزن (كجم)</span>
+        <input type="number" id="bdW" min="20" max="400" step="0.1" inputmode="decimal"></label>
+      <label class="field"><span>الخصر (سم)</span>
+        <input type="number" id="bdWaist" min="30" max="250" step="0.5" inputmode="decimal"></label>
+    </div>
+    <div class="rm-row">
+      <label class="field"><span>الصدر (سم)</span>
+        <input type="number" id="bdChest" min="40" max="250" step="0.5" inputmode="decimal"></label>
+      <label class="field"><span>الذراع (سم)</span>
+        <input type="number" id="bdArm" min="15" max="80" step="0.5" inputmode="decimal"></label>
+    </div>
+    <button class="btn btn-primary" id="bdSave">احفظ القياس</button>
+    <button class="btn btn-soft" id="bdNo">إلغاء</button>
   </div>
 </div>
 

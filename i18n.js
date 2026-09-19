@@ -550,6 +550,37 @@ const EN = {
     "Finish your first workout and the analysis starts building itself.",
 
   /* ---- اللغة ---- */
+  /* ---- بطاقة الإنجاز ---- */
+  "بطاقة إنجازك": "Your achievement card",
+  "شارك": "Share",
+  "شارك إنجازك": "Share your achievement",
+  "احفظ الصورة": "Save image",
+  "سلسلة متواصلة": "Current streak",
+  "يوماً متتالياً": "days in a row",
+  "يوم واحد": "one day",
+  "يوم متتالٍ": "day streak",
+  "شارة": "badges",
+
+  /* ---- القياسات ---- */
+  "وزنك وقياساتك": "Your weight and measurements",
+  "أضف قياس": "Add entry",
+  "قياس جديد": "New entry",
+  "سجّل وزنك ومقاساتك — اترك أي خانة فاضية إذا ما قستها.":
+    "Log your weight and measurements — leave any field blank if you didn't measure it.",
+  "سجّل وزنك اليوم وشوف التغيّر مع تمارينك.": "Log your weight today and watch it move with your training.",
+  "الخصر (سم)": "Waist (cm)",
+  "الصدر (سم)": "Chest (cm)",
+  "الذراع (سم)": "Arm (cm)",
+  "الخصر": "Waist", "الصدر": "Chest", "الذراع": "Arm", "سم": "cm",
+  "احفظ القياس": "Save entry",
+  "انحفظ القياس": "Entry saved",
+  "اكتب قياساً واحداً على الأقل": "Fill in at least one measurement",
+  "حذف القياس": "Delete entry",
+  "سينحذف قياس {0}.": "The entry from {0} will be deleted.",
+  "انحذف القياس": "Entry deleted",
+  "تغيّر وزنك عبر الوقت": "Your weight over time",
+  "مقارنة بأول قياس": "compared with your first entry",
+
   /* ---- الأوزان ---- */
   "حاسبة": "Calculator",
   "حاسبة الأوزان": "Weight calculator",
