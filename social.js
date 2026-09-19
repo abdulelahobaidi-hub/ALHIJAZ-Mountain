@@ -247,7 +247,7 @@ async function createGroup(name){
     }
     const ref = m.doc(m.collection(db, "groups"));
     await m.setDoc(ref, {
-      name, code, ownerUid: uid, memberUids: [uid],
+      name, code, ownerUid: uid, memberUids: [uid], admins: [uid], photo: "",
       createdAt: Date.now(),
       challenge: { target: 5, weekKey: weekKey() }
     });
@@ -282,12 +282,131 @@ async function leaveGroup(g){
   } catch(err){ console.error(err); C.toast("تعذّرت المغادرة"); }
 }
 
+/* ---------- الإشراف على القروب ---------- */
+const groupAdmins = g => (g && g.admins && g.admins.length) ? g.admins : [g && g.ownerUid];
+const isAdminOf   = g => groupAdmins(g).includes(myUid());
+
+/* ترقية القروبات القديمة: تعبئة admins للمؤسس */
+async function ensureAdmins(g){
+  if (g.admins && g.admins.length) return;
+  if (g.ownerUid !== myUid()) { g.admins = [g.ownerUid]; return; }
+  const { db, m } = fb();
+  try {
+    await m.updateDoc(m.doc(db, "groups", g.id), { admins: [g.ownerUid] });
+    g.admins = [g.ownerUid];
+  } catch(err){ console.error("ensureAdmins", err); }
+}
+
+/* صورة القروب: نصغّرها في المتصفح ونخزّنها داخل وثيقة القروب */
+function pickGroupPhoto(){
+  return new Promise(resolve => {
+    const inp = document.createElement("input");
+    inp.type = "file"; inp.accept = "image/*";
+    inp.onchange = () => {
+      const file = inp.files && inp.files[0];
+      if (!file) return resolve(null);
+      const img = new Image();
+      img.onload = () => {
+        const S = 160, c = document.createElement("canvas");
+        c.width = c.height = S;
+        const side = Math.min(img.width, img.height);
+        c.getContext("2d").drawImage(img, (img.width-side)/2, (img.height-side)/2, side, side, 0, 0, S, S);
+        resolve(c.toDataURL("image/jpeg", 0.72));
+      };
+      img.onerror = () => resolve(null);
+      img.src = URL.createObjectURL(file);
+    };
+    inp.click();
+  });
+}
+
+/* ============================================================
+   التحدي الثنائي
+   ============================================================ */
+let duels = {};              // friendUid -> duel
+
+async function loadDuels(){
+  if (!isCloud()) { duels = {}; return; }
+  const { db, m } = fb(), uid = myUid();
+  duels = {};
+  try {
+    for (const f of ["a","b"]){
+      const q = m.query(m.collection(db, "duels"), m.where(f, "==", uid));
+      (await m.getDocs(q)).forEach(d => {
+        const v = { id: d.id, ...d.data() };
+        if (v.endAt > Date.now() - 7 * 86400000) duels[v.a === uid ? v.b : v.a] = v;
+      });
+    }
+  } catch(err){ console.error("loadDuels", err); }
+}
+
+async function startDuel(f){
+  const { db, m } = fb(), uid = myUid();
+  const id = pairId(uid, f.uid);
+  const start = Date.now(), end = start + 7 * 86400000;
+  const meFirst = id.split("_")[0] === uid;
+  const doc = {
+    a: meFirst ? uid : f.uid,      b: meFirst ? f.uid : uid,
+    aName: meFirst ? C.S.user.name : f.name,
+    bName: meFirst ? f.name : C.S.user.name,
+    startAt: start, endAt: end, scoreA: 0, scoreB: 0
+  };
+  try {
+    await m.setDoc(m.doc(db, "duels", id), doc);
+    duels[f.uid] = { id, ...doc };
+    await pushDuelScores();
+    C.toast("بدأ التحدي — أسبوع من الحين");
+    openFriendProfile(f);
+  } catch(err){ console.error(err); C.toast("تعذّر بدء التحدي"); }
+}
+
+/* نكتب نتيجتنا نحن فقط في كل تحدٍّ نشط */
+export async function pushDuelScores(){
+  if (!isCloud()) return;
+  const { db, m } = fb(), uid = myUid();
+  const done = C.S.sessions.filter(s => s.completed !== false);
+  for (const d of Object.values(duels)){
+    if (Date.now() > d.endAt + 86400000) continue;
+    const n = done.filter(s => s.at >= d.startAt && s.at <= d.endAt).length;
+    const field = d.a === uid ? "scoreA" : "scoreB";
+    if (d[field] === n) continue;
+    d[field] = n;
+    try { await m.updateDoc(m.doc(db, "duels", d.id), { [field]: n }); }
+    catch(err){ console.error("duel score", err); }
+  }
+}
+
+function duelHTML(f){
+  const d = duels[f.uid];
+  if (!d) return `<button class="btn btn-soft" id="duelStart">
+      <svg class="ic"><use href="#i-trophy"/></svg><span>تحدَّه أسبوعاً</span></button>`;
+
+  const mine = d.a === myUid() ? d.scoreA : d.scoreB;
+  const his  = d.a === myUid() ? d.scoreB : d.scoreA;
+  const over = Date.now() > d.endAt;
+  const left = Math.max(0, Math.ceil((d.endAt - Date.now()) / 86400000));
+  const verdict = over
+    ? (mine === his ? "تعادل" : mine > his ? "فزت 🎉" : `فاز ${esc(f.name)}`)
+    : `باقي ${left} ${left === 1 ? "يوم" : "أيام"}`;
+  return `
+    <div class="duel${over ? " over" : ""}">
+      <p class="duel-top">تحدي الأسبوع</p>
+      <div class="duel-row">
+        <span class="duel-side${mine >= his ? " lead" : ""}"><b>${mine}</b><span>أنت</span></span>
+        <span class="duel-vs">VS</span>
+        <span class="duel-side${his >= mine ? " lead" : ""}"><b>${his}</b><span>${esc(f.name)}</span></span>
+      </div>
+      <p class="duel-foot">${verdict}</p>
+    </div>`;
+}
+
 /* ============================================================
    WORKOUT HOOK
    ============================================================ */
 export async function socialAfterWorkout(sess){
   if (!isCloud()) return;
   await syncProfile();
+  await pushDuelScores();
   if (!groups.length) await loadGroups();
   const { db, m } = fb();
   const text = `خلّص ${sess.planName || "تمرين"} — ${sess.rounds} جولة`;
@@ -384,7 +503,7 @@ export function renderClub(){
   groups.forEach(g => {
     const li = document.createElement("li");
     li.innerHTML = `
-      <span class="gr-ic"><svg class="ic"><use href="#i-friends"/></svg></span>
+      ${groupAvatar(g, 48)}
       <span class="gr-main"><b>${esc(g.name)}</b>
         <span>${(g.memberUids||[]).length} أعضاء · كود ${esc(g.code)}</span>
       </span>
@@ -398,20 +517,32 @@ export function renderClub(){
    UI — group screen
    ============================================================ */
 async function openGroup(g){
+  await ensureAdmins(g);
   curGroup = g; gTab = "board";
   C.show("group");
   renderGroupHead();
   setTab("board");
 }
 
+function groupAvatar(g, size = 46){
+  const st = `width:${size}px;height:${size}px`;
+  return g.photo
+    ? `<span class="gav" style="${st};background-image:url('${esc(g.photo)}')"></span>`
+    : `<span class="gav ph" style="${st}"><svg class="ic"><use href="#i-friends"/></svg></span>`;
+}
+
 function renderGroupHead(){
   const g = curGroup;
+  const admin = isAdminOf(g);
   $("gHead").innerHTML = `
     <div class="ghead-row">
       <button class="ghead-back" id="gBack" aria-label="رجوع"><svg class="ic"><use href="#i-back"/></svg></button>
+      <button class="gav-btn" id="gPhoto" ${admin ? "" : "disabled"} aria-label="صورة القروب">
+        ${groupAvatar(g, 46)}${admin ? `<i class="gav-edit"><svg class="ic"><use href="#i-edit"/></svg></i>` : ""}
+      </button>
       <div class="ghead-main">
-        <b>${esc(g.name)}</b>
-        <span>${(g.memberUids||[]).length} أعضاء</span>
+        <b id="gName">${esc(g.name)}${admin ? ` <svg class="ic gname-edit"><use href="#i-edit"/></svg>` : ""}</b>
+        <span>${(g.memberUids||[]).length} أعضاء${admin ? " · أنت مشرف" : ""}</span>
       </div>
       <button class="ghead-exit" id="gLeave" aria-label="مغادرة القروب"><svg class="ic"><use href="#i-exit"/></svg></button>
     </div>
@@ -422,6 +553,28 @@ function renderGroupHead(){
     </button>`;
   $("gBack").onclick = () => { closeChat(); C.show("club"); };
   $("gLeave").onclick = () => leaveGroup(g);
+
+  if (admin){
+    $("gName").onclick = async () => {
+      const v = await promptSheet("اسم القروب", "اكتب الاسم الجديد", g.name);
+      const name = (v || "").trim();
+      if (!name || name === g.name) return;
+      const { db, m } = fb();
+      try {
+        await m.updateDoc(m.doc(db, "groups", g.id), { name });
+        g.name = name; renderGroupHead(); await loadGroups(); C.toast("انحفظ الاسم");
+      } catch(err){ console.error(err); C.toast("تعذّر التعديل"); }
+    };
+    $("gPhoto").onclick = async () => {
+      const dataUrl = await pickGroupPhoto();
+      if (!dataUrl) return;
+      const { db, m } = fb();
+      try {
+        await m.updateDoc(m.doc(db, "groups", g.id), { photo: dataUrl });
+        g.photo = dataUrl; renderGroupHead(); await loadGroups(); C.toast("انحفظت الصورة");
+      } catch(err){ console.error(err); C.toast("تعذّر حفظ الصورة"); }
+    };
+  }
   $("gCode").onclick = async () => {
     const txt = `انضم لقروب «${g.name}» في نادي جبال الحجاز\nالكود: ${g.code}\n${location.origin}${location.pathname}`;
     try {
@@ -459,11 +612,17 @@ async function tabBoard(){
     <li class="${p.uid === myUid() ? "me" : ""}">
       <span class="rank ${i < 3 ? medal[i] : ""}">${i + 1}</span>
       ${avatar(p, 44)}
-      <span class="bd-main"><b><span class="nm">${esc(p.name)}${p.uid === myUid() ? " (أنت)" : ""}</span></b>
+      <span class="bd-main"><b><span class="nm">${esc(p.name)}${p.uid === myUid() ? " (أنت)" : ""}</span>${
+        groupAdmins(curGroup).includes(p.uid) ? `<i class="adm">مشرف</i>` : ""}</b>
         <span>${p.week||0} تمرين هذا الأسبوع${p.lastAt ? " · آخر تمرين " + since(p.lastAt) : ""}</span>
       </span>
       ${flame(p.streak, true)}
+      ${p.uid === myUid() ? "" : `<button class="bd-more" data-uid="${esc(p.uid)}" aria-label="خيارات">⋯</button>`}
     </li>`).join("") + `</ul>`;
+
+  body.querySelectorAll(".bd-more").forEach(b => {
+    b.onclick = e => { e.stopPropagation(); memberSheet(profs[b.dataset.uid]); };
+  });
 }
 
 /* ---------- التحدي ---------- */
@@ -618,6 +777,71 @@ async function tabPlans(){
   });
 }
 
+/* ---------- خيارات عضو القروب ---------- */
+async function memberSheet(p){
+  if (!p) return;
+  const g = curGroup;
+  const admin = isAdminOf(g);
+  const isFriend = friends.some(f => f.uid === p.uid);
+  const pAdmin = groupAdmins(g).includes(p.uid);
+
+  const acts = [];
+  if (isFriend) acts.push({ t:"افتح ملفه", run: () => openFriendProfile(p) });
+  else acts.push({ t:"أرسل طلب صداقة", run: () => sendRequestToUid(p) });
+  if (admin && p.uid !== g.ownerUid){
+    acts.push(pAdmin ? { t:"أزل الإشراف", run: () => setAdmin(p, false) }
+                     : { t:"اجعله مشرفاً", run: () => setAdmin(p, true) });
+    acts.push({ t:"أزله من القروب", run: () => kickMember(p) });
+  }
+
+  const i = await chooser(p.name, acts.map(a => a.t));
+  if (i >= 0 && acts[i]) acts[i].run();
+}
+
+async function sendRequestToUid(p){
+  const { db, m } = fb(), uid = myUid();
+  if (p.uid === uid) return;
+  try {
+    const incoming = requests.find(r => r.from === p.uid);
+    if (incoming){ await acceptRequest(incoming); return; }
+    await m.setDoc(m.doc(db, "friendRequests", `${uid}_${p.uid}`), {
+      from: uid, to: p.uid, fromName: C.S.user.name, fromPhoto: C.S.user.photo || "",
+      fromMemberId: P ? P.memberId : "", at: Date.now()
+    });
+    C.toast(`انرسل طلب صداقة لـ ${p.name}`);
+  } catch(err){ console.error(err); C.toast("تعذّر إرسال الطلب"); }
+}
+
+async function setAdmin(p, on){
+  const g = curGroup, { db, m } = fb();
+  try {
+    await m.updateDoc(m.doc(db, "groups", g.id),
+      { admins: on ? m.arrayUnion(p.uid) : m.arrayRemove(p.uid) });
+    const list = new Set(groupAdmins(g));
+    on ? list.add(p.uid) : list.delete(p.uid);
+    g.admins = [...list];
+    renderGroupHead(); tabBoard();
+    C.toast(on ? `${p.name} صار مشرفاً` : `انسحب الإشراف من ${p.name}`);
+  } catch(err){ console.error(err); C.toast("تعذّر التعديل"); }
+}
+
+async function kickMember(p){
+  const g = curGroup;
+  const ok = await C.ask("إزالة عضو", `${p.name} راح ينحذف من ${g.name}. يقدر يرجع بالكود.`, "أزله");
+  if (!ok) return;
+  const { db, m } = fb();
+  try {
+    await m.updateDoc(m.doc(db, "groups", g.id), {
+      memberUids: m.arrayRemove(p.uid),
+      admins: m.arrayRemove(p.uid)
+    });
+    g.memberUids = (g.memberUids||[]).filter(u => u !== p.uid);
+    g.admins = groupAdmins(g).filter(u => u !== p.uid);
+    renderGroupHead(); tabBoard();
+    C.toast(`انحذف ${p.name} من القروب`);
+  } catch(err){ console.error(err); C.toast("تعذّرت الإزالة"); }
+}
+
 /* ============================================================
    ملف الصديق — إحصائياته وتقدّمه وجداوله
    ============================================================ */
@@ -675,6 +899,8 @@ async function openFriendProfile(f){
         <strong>${fresh.week||0}</strong><small>هذا الأسبوع</small></div>
     </div>
 
+    ${duelHTML(fresh)}
+
     <button class="btn btn-primary btn-lg" id="frChat"><svg class="ic"><use href="#i-send"/></svg><span>محادثة</span></button>
 
     <h3 class="sub-head">جداوله</h3>
@@ -686,6 +912,8 @@ async function openFriendProfile(f){
       : `<p class="empty">ما نشر جداول بعد.</p>`}`;
 
   $("frBack").onclick = () => C.show("club");
+  const ds = $("duelStart");
+  if (ds) ds.onclick = () => startDuel(fresh);
   $("frChat").onclick = () => openDM(fresh);
   $("frDel").onclick  = async () => { await removeFriend(fresh.uid, fresh.name); C.show("club"); };
   body.querySelectorAll("[data-fp]").forEach(b => {
@@ -874,6 +1102,8 @@ export async function socialBoot(){
   await loadRequests();
   await loadFriends();
   await loadGroups();
+  await loadDuels();
+  await pushDuelScores();
   renderClub();
   // ننشر نسخة معروضة من جداولي عشان يشوفها أصدقائي
   for (const p of C.S.plans) publishMyPlan(p);
@@ -881,7 +1111,8 @@ export async function socialBoot(){
 
 export function socialTeardown(){
   closeChat(); closeDM();
-  P = null; friends = []; groups = []; requests = []; curGroup = null; dmWith = null; boardCache = {};
+  P = null; friends = []; groups = []; requests = []; curGroup = null; dmWith = null;
+  boardCache = {}; duels = {};
 }
 
 export function memberId(){ return P ? P.memberId : null; }

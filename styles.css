@@ -603,3 +603,46 @@ body.is-prep .run-clock{color:var(--soft)}
 
 /* صفّ مفاتيح الصوت */
 .switch-row{display:flex;flex-direction:column;gap:10px;align-items:center}
+
+/* ============================================================
+   إدارة القروب + التحدي الثنائي
+   ============================================================ */
+.gav{
+  display:grid;place-items:center;border-radius:16px;flex:0 0 auto;color:#fff;
+  background:linear-gradient(140deg,var(--coral),var(--rose)) center/cover no-repeat;
+}
+.gav.ph .ic{width:22px;height:22px}
+.gav-btn{position:relative;border:0;background:transparent;padding:0;cursor:pointer;flex:0 0 auto}
+.gav-btn[disabled]{cursor:default}
+.gav-edit{
+  position:absolute;inset-inline-end:-4px;bottom:-4px;width:22px;height:22px;border-radius:8px;
+  background:var(--panel);border:1.5px solid var(--rule);display:grid;place-items:center;color:var(--soft);
+}
+.gav-edit .ic{width:13px;height:13px}
+#gName{display:flex;align-items:center;gap:7px;cursor:pointer}
+.gname-edit{width:15px;height:15px;color:var(--soft);flex:0 0 auto}
+
+.adm{
+  font-style:normal;font-size:10.5px;font-weight:600;color:var(--plum);
+  background:#F4E9F1;border-radius:99px;padding:2px 8px;margin-inline-start:7px;flex:0 0 auto;
+}
+.bd-main b{display:flex;align-items:center;min-width:0}
+.bd-more{
+  width:36px;height:36px;border-radius:12px;flex:0 0 auto;border:1.5px solid var(--rule);
+  background:var(--panel-2);color:var(--soft);font-size:18px;line-height:1;cursor:pointer;
+}
+
+/* التحدي الثنائي */
+.duel{
+  background:linear-gradient(150deg,var(--plum),var(--rose));color:#fff;border-radius:var(--r-md);
+  padding:16px 18px;text-align:center;box-shadow:0 12px 26px -16px rgba(121,62,94,.9);
+}
+.duel.over{background:linear-gradient(150deg,#6C5A66,#8B6E7E)}
+.duel-top{margin:0;font-size:13px;opacity:.9}
+.duel-row{display:flex;align-items:center;justify-content:center;gap:16px;margin:8px 0 6px}
+.duel-side{display:flex;flex-direction:column;align-items:center;gap:1px;min-width:74px;opacity:.72}
+.duel-side.lead{opacity:1}
+.duel-side b{font-size:34px;font-weight:700;line-height:1}
+.duel-side span{font-size:12.5px;max-width:92px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.duel-vs{font-size:14px;font-weight:700;opacity:.75;letter-spacing:.06em}
+.duel-foot{margin:0;font-size:14px;font-weight:600}

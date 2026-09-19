@@ -69,25 +69,46 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // التحدي الثنائي — معرّفه uid_uid لطرفيه
+    match /duels/{pair} {
+      function inPair() { return signedIn() && me() in pair.split('_'); }
+      allow read, write: if inPair();
+    }
+
     // القروبات
     match /groups/{gid} {
 
       function isMember() { return signedIn() && me() in resource.data.memberUids; }
+      // المشرفون: قائمة admins إن وُجدت، وإلا المؤسس وحده
+      function admins() {
+        return ('admins' in resource.data) ? resource.data.admins : [resource.data.ownerUid];
+      }
+      function isAdmin() { return signedIn() && me() in admins(); }
 
       allow read: if isMember();
 
       allow create: if signedIn()
                     && request.resource.data.ownerUid == me()
-                    && request.resource.data.memberUids == [me()];
+                    && request.resource.data.memberUids == [me()]
+                    && request.resource.data.admins == [me()];
 
-      // العضو يعدّل قروبه، وغير العضو يقدر فقط يضيف نفسه (الانضمام بالكود)
-      allow update: if isMember()
-                    || (signedIn()
-                        && me() in request.resource.data.memberUids
-                        && request.resource.data.memberUids.hasAll(resource.data.memberUids)
-                        && request.resource.data.memberUids.size() == resource.data.memberUids.size() + 1
-                        && request.resource.data.name == resource.data.name
-                        && request.resource.data.ownerUid == resource.data.ownerUid);
+      allow update:
+        // المشرف يعدّل الاسم والصورة والتحدي والأعضاء والمشرفين — ويبقى المؤسس مشرفاً دائماً
+        (isAdmin()
+          && request.resource.data.ownerUid == resource.data.ownerUid
+          && resource.data.ownerUid in request.resource.data.admins
+          && (!('photo' in request.resource.data) || request.resource.data.photo.size() < 60000))
+        // العضو العادي: يغادر القروب فقط
+        || (isMember()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberUids'])
+            && !(me() in request.resource.data.memberUids)
+            && resource.data.memberUids.hasAll(request.resource.data.memberUids))
+        // غير العضو: ينضم بالكود — يضيف نفسه فقط ولا يغيّر شيئاً آخر
+        || (signedIn()
+            && me() in request.resource.data.memberUids
+            && request.resource.data.memberUids.hasAll(resource.data.memberUids)
+            && request.resource.data.memberUids.size() == resource.data.memberUids.size() + 1
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberUids']));
 
       allow delete: if signedIn() && resource.data.ownerUid == me();
 
