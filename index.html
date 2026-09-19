@@ -103,6 +103,7 @@
 
         <div class="streak-top">
           <span class="streak-chip"><svg class="ic"><use href="#i-flame"/></svg> أيام متتالية</span>
+          <span class="streak-chip freeze" id="freezeChip">❄️</span>
         </div>
         <p class="streak-num" id="streakNum">0</p>
         <p class="streak-sub" id="streakSub">ابدأ اليوم وخلّ العدّاد يمشي</p>
@@ -276,7 +277,10 @@
         <button class="btn btn-soft btn-sq" id="btnSkip" aria-label="التالي"><svg class="ic"><use href="#i-next"/></svg></button>
         <button class="btn btn-soft btn-sq" id="btnStop" aria-label="إنهاء"><svg class="ic"><use href="#i-stop"/></svg></button>
       </div>
-      <label class="switch"><input type="checkbox" id="optSound" checked><span>صوت التنبيه</span></label>
+      <div class="switch-row">
+        <label class="switch"><input type="checkbox" id="optSound" checked><span>نغمة التنبيه</span></label>
+        <label class="switch"><input type="checkbox" id="optVoice" checked><span>صوت يقرأ التمرين</span></label>
+      </div>
     </section>
 
     <!-- ---------- CLUB (friends + groups) ---------- -->
@@ -340,8 +344,10 @@
 
     <!-- ---------- HISTORY ---------- -->
     <section class="view" id="v-log" hidden>
+      <div id="progressBox"></div>
       <div class="head-row"><h2>السجل</h2><span class="count" id="logCount"></span></div>
       <ul class="log" id="log"></ul>
+      <button class="btn btn-soft" id="logMore" hidden>عرض المزيد</button>
       <p class="empty" id="logEmpty">ما في تمارين مسجّلة بعد.</p>
     </section>
 
@@ -351,7 +357,7 @@
     <button data-view="home" class="on"><svg class="ic"><use href="#i-home"/></svg><span>الرئيسية</span></button>
     <button data-view="plans"><svg class="ic"><use href="#i-list"/></svg><span>الجداول</span></button>
     <button data-view="club"><svg class="ic"><use href="#i-friends"/></svg><span>النادي</span></button>
-    <button data-view="log"><svg class="ic"><use href="#i-clock"/></svg><span>السجل</span></button>
+    <button data-view="log"><svg class="ic"><use href="#i-clock"/></svg><span>التقدّم</span></button>
   </nav>
 </div>
 

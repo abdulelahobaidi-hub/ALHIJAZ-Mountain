@@ -7,6 +7,7 @@
 import { initSocial, socialBoot, socialTeardown, socialAfterWorkout,
          renderClub, refreshClub, memberId,
          publishMyPlan, unpublishMyPlan } from "./social.js";
+import { initProgress, renderProgress, badgeCount } from "./progress.js";
 
 /* ---------------- exercise library ---------------- */
 const LIB = [
@@ -48,7 +49,8 @@ const S = {
   sessions: [],
   editing: null,
   run: null,
-  fb: null               // {auth, db, mods}
+  fb: null,              // {auth, db, mods}
+  freeze: { credits: 0, used: {}, earnedUpto: 0 }   // تجميد السلسلة
 };
 
 const $ = id => document.getElementById(id);
@@ -114,7 +116,7 @@ function buildSegments(p){
 /* ============================================================
    STORAGE — local always; cloud when signed in
    ============================================================ */
-const LK = { plans:"hejaz.plans", sessions:"hejaz.sessions", mode:"hejaz.mode" };
+const LK = { plans:"hejaz.plans", sessions:"hejaz.sessions", mode:"hejaz.mode", freeze:"hejaz.freeze" };
 
 function lsGet(k, fb){ try { const r = localStorage.getItem(k); return r ? JSON.parse(r) : fb; } catch(e){ return fb; } }
 function lsSet(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
@@ -137,6 +139,16 @@ async function loadAll(){
     S.plans = lsGet(LK.plans, []);
     S.sessions = lsGet(LK.sessions, []);
   }
+  /* تجميد السلسلة */
+  S.freeze = lsGet(LK.freeze, { credits:0, used:{}, earnedUpto:0 });
+  if (S.mode === "cloud" && S.fb){
+    const { db, m } = S.fb;
+    try {
+      const snap = await m.getDoc(m.doc(db, "users", S.user.uid, "meta", "freeze"));
+      if (snap.exists()) S.freeze = { credits:0, used:{}, earnedUpto:0, ...snap.data() };
+    } catch(err){ console.error("freeze", err); }
+  }
+
   if (!S.plans.length){
     const p = defaultPlan();
     S.plans = [p];
@@ -282,24 +294,86 @@ async function signOutNow(){
 }
 
 /* ============================================================
-   STREAK
+   STREAK + تجميد السلسلة
    ============================================================ */
-function streakInfo(){
-  const days = new Set(S.sessions.filter(s => s.completed !== false).map(s => dayKey(s.at)));
+const trainedDays = () =>
+  new Set(S.sessions.filter(s => s.completed !== false).map(s => dayKey(s.at)));
+
+async function saveFreeze(){
+  lsSet(LK.freeze, S.freeze);
+  if (S.mode === "cloud" && S.fb){
+    const { db, m } = S.fb;
+    try { await m.setDoc(m.doc(db, "users", S.user.uid, "meta", "freeze"), S.freeze); }
+    catch(err){ console.error("saveFreeze", err); }
+  }
+}
+
+/* يغطّي يوماً واحداً فائتاً بين يومي تدريب — يوم راحة بدون ما تنكسر السلسلة */
+function applyFreezes(){
+  const days = trainedDays(), f = S.freeze;
   const today = new Date(); today.setHours(0,0,0,0);
+  const todayK = dayKey(today);
+  let used = 0;
+  const d = new Date(today); d.setDate(d.getDate() - 1);   // نبدأ من أمس
+
+  for (let guard = 0; guard < 400; guard++){
+    const k = dayKey(d);
+    if (days.has(k) || f.used[k]){ d.setDate(d.getDate() - 1); continue; }
+
+    const prevK = dayKey(new Date(d.getTime() - 86400000));
+    const nextK = dayKey(new Date(d.getTime() + 86400000));
+    const alive = days.has(prevK) || f.used[prevK];
+    const after = days.has(nextK) || f.used[nextK] || nextK === todayK;
+
+    if (f.credits > 0 && alive && after){
+      f.credits--; f.used[k] = true; used++;
+      d.setDate(d.getDate() - 1); continue;
+    }
+    break;                                    // هنا تنتهي السلسلة فعلاً
+  }
+  return used;
+}
+
+/* تكسب تجميداً عن كل ٧ أيام متتالية، بحد أقصى ٣ */
+function awardFreezes(streak){
+  const f = S.freeze;
+  const milestone = Math.floor(streak / 7);
+  if (milestone > (f.earnedUpto || 0)){
+    const gained = Math.min(3 - f.credits, milestone - f.earnedUpto);
+    f.earnedUpto = milestone;
+    if (gained > 0){ f.credits += gained; return gained; }
+  }
+  return 0;
+}
+
+function streakInfo(){
+  const days = trainedDays();
+  const frozen = new Set(Object.keys(S.freeze.used || {}));
+  const all = new Set([...days, ...frozen]);
+  const today = new Date(); today.setHours(0,0,0,0);
+
   let cur = 0;
   const probe = new Date(today);
-  if (!days.has(dayKey(probe))) probe.setDate(probe.getDate() - 1);   // yesterday still keeps it alive
-  while (days.has(dayKey(probe))){ cur++; probe.setDate(probe.getDate() - 1); }
+  if (!all.has(dayKey(probe))) probe.setDate(probe.getDate() - 1);   // أمس يبقيها حيّة
+  while (all.has(dayKey(probe))){ cur++; probe.setDate(probe.getDate() - 1); }
 
-  const sorted = [...days].sort();
   let best = 0, run = 0, prev = null;
-  sorted.forEach(k => {
+  [...all].sort().forEach(k => {
     const d = new Date(k + "T00:00:00");
     run = (prev && (d - prev) === 86400000) ? run + 1 : 1;
     best = Math.max(best, run); prev = d;
   });
-  return { current: cur, best, days, todayDone: days.has(dayKey(today)) };
+  return { current: cur, best, days, frozen, all, todayDone: days.has(dayKey(today)) };
+}
+
+/* تُستدعى عند الإقلاع وبعد كل تمرين */
+async function refreshStreak(){
+  const usedNow = applyFreezes();
+  const gained = awardFreezes(streakInfo().current);
+  if (usedNow || gained) await saveFreeze();
+  if (usedNow) toast(usedNow === 1 ? "استخدمنا تجميداً — سلسلتك محفوظة ❄️"
+                                   : `استخدمنا ${usedNow} تجميدات — سلسلتك محفوظة ❄️`);
+  else if (gained) toast(`كسبت ${gained === 1 ? "تجميد" : gained + " تجميدات"} ❄️`);
 }
 
 /* ============================================================
@@ -314,7 +388,7 @@ function show(view){
     b.classList.toggle("on", b.dataset.view === view || (clubish && b.dataset.view === "club")));
   if (view === "home") renderHome();
   if (view === "plans") renderPlans();
-  if (view === "log") renderLog();
+  if (view === "log"){ renderProgress(); renderLog(); }
   if (view === "club") renderClub();
   window.scrollTo(0, 0);
 }
@@ -334,6 +408,7 @@ async function enterApp(){
   const a = $("btnAccount");
   if (S.user.photo){ a.style.backgroundImage = `url("${S.user.photo}")`; $("avatarText").textContent = ""; }
   else { a.style.backgroundImage = ""; $("avatarText").textContent = (S.user.name || "ض").trim().charAt(0); }
+  await refreshStreak();
   show("home");
   socialBoot();
 }
@@ -352,10 +427,15 @@ function renderHome(){
   for (let i = 6; i >= 0; i--){
     const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - i);
     const on = st.days.has(dayKey(d));
-    h += `<div class="day${on ? " on" : ""}${i === 0 ? " is-today" : ""}">`
-       + `<i><svg viewBox="0 0 24 24"><path d="m5.5 12.5 4.2 4.2 8.8-9"/></svg></i>${names[d.getDay()]}</div>`;
+    const froze = st.frozen.has(dayKey(d));
+    h += `<div class="day${on ? " on" : froze ? " froze" : ""}${i === 0 ? " is-today" : ""}">`
+       + `<i>${froze ? "❄️" : `<svg viewBox="0 0 24 24"><path d="m5.5 12.5 4.2 4.2 8.8-9"/></svg>`}</i>`
+       + `${names[d.getDay()]}</div>`;
   }
   $("week").innerHTML = h;
+  $("freezeChip").innerHTML = S.freeze.credits
+    ? `❄️ ${S.freeze.credits} ${S.freeze.credits === 1 ? "تجميد" : "تجميدات"}`
+    : `❄️ تكسب تجميداً كل ٧ أيام`;
 
   const p = S.plans[0];
   if (p){
@@ -389,6 +469,13 @@ function renderPlans(){
     li.querySelector(".plan-edit").onclick = () => openBuilder(p);
     ul.appendChild(li);
   });
+
+  const more = $("logMore");
+  if (S.sessions.length > logLimit){
+    more.hidden = false;
+    more.textContent = `عرض المزيد (${S.sessions.length - logLimit})`;
+    more.onclick = () => { logLimit += 20; renderLog(); };
+  } else more.hidden = true;
 }
 
 /* ---------- builder ---------- */
@@ -592,6 +679,34 @@ function beep(freq, ms, vol){
   } catch(e){}
 }
 
+/* ---------- صوت يقرأ التمرين ---------- */
+let arVoice = null;
+function pickVoice(){
+  if (!("speechSynthesis" in window)) return;
+  const vs = speechSynthesis.getVoices() || [];
+  arVoice = vs.find(v => /^ar/i.test(v.lang)) || null;
+}
+if ("speechSynthesis" in window){
+  pickVoice();
+  speechSynthesis.onvoiceschanged = pickVoice;
+}
+function speak(text){
+  if (!$("optVoice") || !$("optVoice").checked) return;
+  if (!("speechSynthesis" in window) || !text) return;
+  try {
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "ar-SA"; u.rate = 1.02;
+    if (arVoice) u.voice = arVoice;
+    speechSynthesis.cancel();
+    speechSynthesis.speak(u);
+  } catch(e){}
+}
+function saySegment(seg, next){
+  if (!seg) return;
+  if (seg.kind === "rest") speak(next ? `راحة، بعدها ${next.name}` : "راحة");
+  else speak(seg.name);
+}
+
 function keepAwake(on){
   try {
     if (on && navigator.wakeLock && !wake){
@@ -617,6 +732,7 @@ function tick(){
     r.elapsed -= r.segs[r.idx].dur; r.idx++; r.beeped = -1;
     if (r.idx >= r.segs.length){ finishRun(true); return; }
     beep(r.segs[r.idx].kind === "rest" ? 430 : 980, 260, .3);
+    saySegment(r.segs[r.idx], r.segs[r.idx + 1]);
   }
   renderRun();
 }
@@ -626,6 +742,7 @@ function play(){
   if (r.finished){ startRun(r.plan); return; }
   r.running = true; r.last = Date.now();
   beep(980, 200, .28); keepAwake(true);
+  saySegment(r.segs[r.idx], r.segs[r.idx + 1]);
   if (!ticker) ticker = setInterval(tick, 120);
   renderRun();
 }
@@ -644,6 +761,7 @@ async function finishRun(complete){
       rounds, total: r.rounds, secs: Math.round(secs), completed: !!complete
     };
     await saveSession(sess);
+    await refreshStreak();
     socialAfterWorkout(sess);
   }
   if (complete){
@@ -660,13 +778,14 @@ async function finishRun(complete){
 }
 
 /* ---------- log ---------- */
+let logLimit = 12;
 function renderLog(){
   const ul = $("log"); ul.innerHTML = "";
   $("logEmpty").hidden = S.sessions.length > 0;
   ul.hidden = S.sessions.length === 0;
   $("logCount").textContent = S.sessions.length ? `${S.sessions.length} تمرين` : "";
 
-  S.sessions.forEach(s => {
+  S.sessions.slice(0, logLimit).forEach(s => {
     const d = new Date(s.at);
     const date = d.toLocaleDateString("ar-SA-u-nu-latn-ca-gregory", { weekday:"long", day:"numeric", month:"long" });
     const time = d.toLocaleTimeString("ar-SA-u-nu-latn", { hour:"numeric", minute:"2-digit" });
@@ -751,9 +870,19 @@ $("sheet").addEventListener("click", e => { if (e.target.id === "sheet") $("shee
 $("confirm").addEventListener("click", e => { if (e.target.id === "confirm") $("cfNo").click(); });
 
 /* ---------- boot ---------- */
-initSocial({
-  S, toast, ask, dayKey, streakInfo, show,
-  planRounds, planSeconds, addPlanCopy
+const CTX = { S, toast, ask, dayKey, streakInfo, show, planRounds, planSeconds, addPlanCopy, badgeCount };
+initSocial(CTX);
+initProgress(CTX);
+
+/* حفظ تفضيلات الصوت */
+const OPTS = lsGet("hejaz.opts", { sound:true, voice:true });
+["optSound","optVoice"].forEach(id => {
+  const el = $(id), key = id === "optSound" ? "sound" : "voice";
+  el.checked = OPTS[key] !== false;
+  el.addEventListener("change", () => {
+    OPTS[key] = el.checked; lsSet("hejaz.opts", OPTS);
+    if (key === "voice" && el.checked) speak("تمام");
+  });
 });
 
 (async function boot(){

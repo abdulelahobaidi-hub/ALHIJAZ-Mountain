@@ -61,7 +61,9 @@ function myStats(){
     week: done.filter(s => s.at >= ws).length,
     total: done.length,
     lastAt: done.length ? done[0].at : 0,
-    days: [...new Set(done.map(s => C.dayKey(s.at)))].sort().slice(-21)   // لعرض تقدّمه لأصدقائه
+    days: [...new Set(done.map(s => C.dayKey(s.at)))].sort().slice(-21),  // لعرض تقدّمه لأصدقائه
+    frozen: Object.keys((C.S.freeze && C.S.freeze.used) || {}).sort().slice(-21),
+    badges: C.badgeCount ? C.badgeCount() : 0
   };
 }
 
@@ -619,14 +621,15 @@ async function tabPlans(){
 /* ============================================================
    ملف الصديق — إحصائياته وتقدّمه وجداوله
    ============================================================ */
-function weekStrip(days){
+function weekStrip(days, frozen){
   const set = new Set(days || []);
+  const fz  = new Set(frozen || []);
   const names = ["ح","ن","ث","ر","خ","ج","س"];
   let h = "";
   for (let i = 6; i >= 0; i--){
     const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - i);
-    const on = set.has(C.dayKey(d));
-    h += `<div class="fday${on ? " on" : ""}"><i></i>${names[d.getDay()]}</div>`;
+    const k = C.dayKey(d), on = set.has(k), froze = !on && fz.has(k);
+    h += `<div class="fday${on ? " on" : froze ? " froze" : ""}"><i>${froze ? "❄️" : ""}</i>${names[d.getDay()]}</div>`;
   }
   return `<div class="fweek">${h}</div>`;
 }
@@ -658,8 +661,9 @@ async function openFriendProfile(f){
     <div class="fprof">
       ${avatar(fresh, 76)}
       <h2>${esc(fresh.name)} ${flame(fresh.streak, true)}</h2>
-      <p>${fresh.lastAt ? "آخر تمرين " + since(fresh.lastAt) : "ما سجّل تمارين بعد"}</p>
-      ${weekStrip(fresh.days)}
+      <p>${fresh.lastAt ? "آخر تمرين " + since(fresh.lastAt) : "ما سجّل تمارين بعد"}${
+        fresh.badges ? ` · 🏅 ${fresh.badges} شارة` : ""}</p>
+      ${weekStrip(fresh.days, fresh.frozen)}
     </div>
 
     <div class="stats">
