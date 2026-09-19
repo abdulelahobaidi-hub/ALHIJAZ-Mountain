@@ -59,19 +59,31 @@ async function saveConf(extra = {}){
 }
 
 /* ---------- تسجيل الجهاز ---------- */
+const errCode = e => (e && (e.code || e.name)) ? (e.code || e.name) : String((e && e.message) || e).slice(0, 80);
+
 async function registerDevice(){
-  if (!swReg) swReg = await navigator.serviceWorker.register("./firebase-messaging-sw.js");
-  await navigator.serviceWorker.ready;
+  /* ١ — عامل الخدمة */
+  try {
+    if (!swReg) swReg = await navigator.serviceWorker.register("./firebase-messaging-sw.js");
+    await navigator.serviceWorker.ready;
+  } catch(e){ return { ok:false, step:"sw", code: errCode(e) }; }
 
-  const perm = Notification.permission === "granted"
-    ? "granted" : await Notification.requestPermission();
-  if (perm !== "granted") return { ok:false, why: perm === "denied" ? "denied" : "dismissed" };
+  /* ٢ — إذن الإشعارات */
+  let perm = Notification.permission;
+  if (perm !== "granted"){
+    try { perm = await Notification.requestPermission(); }
+    catch(e){ return { ok:false, step:"perm", code: errCode(e) }; }
+  }
+  if (perm !== "granted") return { ok:false, step:"perm", code: perm };
 
-  const S = C.S;
-  const msgM = await import(`${V}/firebase-messaging.js`);
-  const messaging = msgM.getMessaging(S.fb.app);
-  const token = await msgM.getToken(messaging, { vapidKey: VAPID, serviceWorkerRegistration: swReg });
-  if (!token) return { ok:false, why:"token" };
+  /* ٣ — رمز الجهاز من FCM */
+  let token = "", messaging = null, msgM = null;
+  try {
+    msgM = await import(`${V}/firebase-messaging.js`);
+    messaging = msgM.getMessaging(C.S.fb.app);
+    token = await msgM.getToken(messaging, { vapidKey: VAPID, serviceWorkerRegistration: swReg });
+  } catch(e){ return { ok:false, step:"token", code: errCode(e) }; }
+  if (!token) return { ok:false, step:"token", code:"empty" };
 
   /* إشعار داخل التطبيق وهو مفتوح */
   try {
@@ -147,21 +159,34 @@ export function wirePush(){
       const r = await registerDevice();
       if (!r.ok){
         sw.checked = false;
-        note(r.why === "denied"
-          ? L("الإشعارات محظورة لهذا الموقع — فعّلها من إعدادات جهازك.")
-          : L("ما قدرنا نفعّل الإشعارات — جرّب مرة ثانية."));
+        console.error("push step:", r.step, r.code);
+        if (r.step === "perm" && r.code === "denied")
+          note(L("الإشعارات محظورة لهذا الموقع — فعّلها من إعدادات جهازك."));
+        else if (r.step === "perm")
+          note(L("لازم تسمح بالإشعارات عشان يوصلك التذكير."));
+        else if (r.step === "sw")
+          note(L("تعذّر تشغيل خدمة الإشعارات ({0}) — أعد تحميل الصفحة وجرّب.", r.code));
+        else
+          note(L("تعذّر تسجيل جهازك في الإشعارات ({0}).", r.code));
         return;
       }
       conf.enabled = true;
       const [h, mn] = sel.value.split(":").map(Number);
       conf.hour = h; conf.minute = mn;
-      await saveConf({ token: r.token });
+      try {
+        await saveConf({ token: r.token });
+      } catch(e){
+        sw.checked = false; conf.enabled = false;
+        console.error("push save", e);
+        note(L("تعذّر حفظ الإعداد ({0}) — تأكد أنك نشرت قواعد Firestore المحدّثة.", errCode(e)));
+        return;
+      }
       sel.disabled = false;
       note(L("تمام — راح يوصلك تذكير كل يوم الساعة {0}.", remTime()));
     } catch(err){
       console.error("push", err);
       sw.checked = false;
-      note(L("ما قدرنا نفعّل الإشعارات — جرّب مرة ثانية."));
+      note(L("تعذّر التفعيل ({0}) — جرّب مرة ثانية.", errCode(err)));
     } finally {
       sw.disabled = false;
     }

@@ -564,7 +564,13 @@ const EN = {
   "تمام — راح يوصلك تذكير كل يوم الساعة {0}.": "Done — you'll get a reminder every day at {0}.",
   "تذكير واحد في اليوم — ما يوصلك إذا كنت خلّصت تمرينك.":
     "One reminder a day — it's skipped if you already trained.",
-  "ما قدرنا نفعّل الإشعارات — جرّب مرة ثانية.": "Couldn't turn on notifications — try again.",
+  "لازم تسمح بالإشعارات عشان يوصلك التذكير.": "You need to allow notifications to get the reminder.",
+  "تعذّر تشغيل خدمة الإشعارات ({0}) — أعد تحميل الصفحة وجرّب.":
+    "Couldn't start the notification service ({0}) — reload the page and try again.",
+  "تعذّر تسجيل جهازك في الإشعارات ({0}).": "Couldn't register your device for notifications ({0}).",
+  "تعذّر حفظ الإعداد ({0}) — تأكد أنك نشرت قواعد Firestore المحدّثة.":
+    "Couldn't save the setting ({0}) — make sure you published the updated Firestore rules.",
+  "تعذّر التفعيل ({0}) — جرّب مرة ثانية.": "Couldn't turn it on ({0}) — try again.",
   "وقّفنا التذكير.": "Reminder turned off.",
 
   /* ---- بطاقة الإنجاز ---- */
