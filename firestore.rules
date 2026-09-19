@@ -16,6 +16,35 @@ service cloud.firestore {
     match /profiles/{userId} {
       allow read: if signedIn();
       allow write: if signedIn() && me() == userId;
+
+      // نسخة معروضة من جداوله يشوفها أصدقاؤه
+      match /plans/{planId} {
+        allow read:  if signedIn();
+        allow write: if signedIn() && me() == userId;
+      }
+    }
+
+    // طلبات الصداقة: يرسلها الطرف الأول، ويقبلها أو يرفضها الثاني
+    match /friendRequests/{reqId} {
+      allow read:   if signedIn() && (resource.data.from == me() || resource.data.to == me());
+      allow create: if signedIn() && request.resource.data.from == me()
+                    && request.resource.data.to != me();
+      allow delete: if signedIn() && (resource.data.from == me() || resource.data.to == me());
+      allow update: if false;
+    }
+
+    // المحادثات الخاصة — معرّف المحادثة هو uid_uid لطرفيها
+    match /dms/{pair} {
+      function inPair() { return signedIn() && me() in pair.split('_'); }
+      allow read, write: if inPair();
+
+      match /messages/{mid} {
+        function inPair2() { return signedIn() && me() in pair.split('_'); }
+        allow read:   if inPair2();
+        allow create: if inPair2() && request.resource.data.uid == me();
+        allow delete: if inPair2() && resource.data.uid == me();
+        allow update: if false;
+      }
     }
 
     // أرقام العضوية: للبحث عن عضو برقمه

@@ -283,6 +283,11 @@
     <section class="view" id="v-club" hidden>
       <div class="me-card" id="meCard"></div>
 
+      <div id="reqWrap" hidden>
+        <div class="head-row"><h2>طلبات صداقة</h2><span class="count" id="reqCount"></span></div>
+        <ul class="req-list" id="reqList"></ul>
+      </div>
+
       <div class="head-row">
         <h2>الأصدقاء</h2>
         <button class="btn btn-soft btn-pill" id="btnAddFriend">
@@ -315,6 +320,22 @@
         <button data-gt="plans">الجداول</button>
       </div>
       <div id="gBody"></div>
+    </section>
+
+    <!-- ---------- FRIEND PROFILE ---------- -->
+    <section class="view" id="v-friend" hidden>
+      <div id="frBody"></div>
+    </section>
+
+    <!-- ---------- DIRECT CHAT ---------- -->
+    <section class="view" id="v-dm" hidden>
+      <div class="ghead" id="dmHead"></div>
+      <div class="chat" id="dmBox"></div>
+      <div class="chat-bar">
+        <button class="btn btn-soft btn-sq" id="dmPlan" aria-label="شارك جدولاً"><svg class="ic"><use href="#i-share"/></svg></button>
+        <input type="text" id="dmInput" placeholder="اكتب رسالة…" autocomplete="off">
+        <button class="btn btn-primary btn-sq" id="dmSend" aria-label="إرسال"><svg class="ic"><use href="#i-send"/></svg></button>
+      </div>
     </section>
 
     <!-- ---------- HISTORY ---------- -->

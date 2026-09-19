@@ -5,7 +5,8 @@
    ============================================================ */
 
 import { initSocial, socialBoot, socialTeardown, socialAfterWorkout,
-         renderClub, refreshClub, memberId } from "./social.js";
+         renderClub, refreshClub, memberId,
+         publishMyPlan, unpublishMyPlan } from "./social.js";
 
 /* ---------------- exercise library ---------------- */
 const LIB = [
@@ -154,6 +155,7 @@ async function savePlan(p){
     const { db, m } = S.fb;
     try { await m.setDoc(m.doc(db, "users", S.user.uid, "plans", p.id), p); }
     catch(err){ console.error(err); toast("انحفظ محلياً — تعذّر الحفظ في السحابة"); }
+    publishMyPlan(p);          // نسخة معروضة لأصدقائي
   }
 }
 
@@ -163,6 +165,7 @@ async function removePlan(id){
   if (S.mode === "cloud" && S.fb){
     const { db, m } = S.fb;
     try { await m.deleteDoc(m.doc(db, "users", S.user.uid, "plans", id)); } catch(err){ console.error(err); }
+    unpublishMyPlan(id);
   }
 }
 
@@ -303,11 +306,12 @@ function streakInfo(){
    VIEWS
    ============================================================ */
 function show(view){
-  ["home","plans","build","log","run","club","group"].forEach(v => {
+  ["home","plans","build","log","run","club","group","friend","dm"].forEach(v => {
     const el = $("v-" + v); if (el) el.hidden = (v !== view);
   });
+  const clubish = ["group","friend","dm"].includes(view);
   document.querySelectorAll(".tabbar button").forEach(b =>
-    b.classList.toggle("on", b.dataset.view === view || (view === "group" && b.dataset.view === "club")));
+    b.classList.toggle("on", b.dataset.view === view || (clubish && b.dataset.view === "club")));
   if (view === "home") renderHome();
   if (view === "plans") renderPlans();
   if (view === "log") renderLog();
