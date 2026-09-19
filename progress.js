@@ -170,19 +170,35 @@ function plansHTML(){
 }
 
 /* ---------- الأوزان ---------- */
+/* أقصى وزن متوقع لمرة واحدة — معادلة إيبلي */
+export const oneRM = (w, reps) =>
+  Math.round((+w||0) * (1 + Math.max(1,+reps||1) / 30) * 2) / 2;
+
+/* خطوة الزيادة: الأوزان الثقيلة تزيد ٥ والخفيفة ٢٫٥ */
+const step = w => (w >= 40 ? 5 : 2.5);
+
 function liftRows(){
   const map = new Map();
   C.S.sessions.filter(s => s.completed !== false && s.lifts && s.lifts.length)
     .slice().sort((a,b) => a.at - b.at)               // من الأقدم للأحدث
     .forEach(s => s.lifts.forEach(l => {
-      const cur = map.get(l.name) || { name:l.name, best:0, first:0, last:0, vol:0, times:0 };
+      const cur = map.get(l.name) ||
+        { name:l.name, best:0, first:0, last:0, lastReps:0, vol:0, times:0, hist:[] };
       const w = +l.weight || 0;
       if (!cur.times) cur.first = w;
-      cur.best = Math.max(cur.best, w); cur.last = w; cur.times++;
+      cur.best = Math.max(cur.best, w); cur.last = w; cur.lastReps = +l.reps || 0;
+      cur.times++; cur.hist.push(w);
       cur.vol += (+l.sets||0) * (+l.reps||0) * w;
       map.set(l.name, cur);
     }));
-  return [...map.values()].sort((a,b) => b.vol - a.vol);
+  return [...map.values()].map(r => {
+    const tail = r.hist.slice(-3);
+    r.rm = oneRM(r.last, r.lastReps);
+    /* ثبت على نفس الوزن ثلاث مرات (أو مرتين لو ما عنده أكثر) — وقت الزيادة */
+    r.ready = tail.length >= 2 && tail.every(w => w === r.last) && r.last > 0;
+    r.next = r.last + step(r.last);
+    return r;
+  }).sort((a,b) => b.vol - a.vol);
 }
 export const totalVolume = () =>
   Math.round(C.S.sessions.filter(s => s.completed !== false).reduce((a,s) => a + (+s.volume||0), 0));
@@ -193,13 +209,23 @@ function liftsHTML(){
   const max = Math.max(...rows.map(r => r.best), 1);
   return `
     <div class="card chart">
-      <div class="chart-head"><h3>${L("أوزانك")}</h3><span>${totalVolume().toLocaleString("en-US")} ${L("كجم إجمالاً")}</span></div>
+      <div class="chart-head">
+        <h3>${L("أوزانك")}</h3>
+        <button class="btn-mini" id="btnRM">${L("حاسبة")}</button>
+      </div>
+      <p class="chart-sub">${totalVolume().toLocaleString("en-US")} ${L("كجم إجمالاً")}</p>
       <div class="lifts">` + rows.slice(0,6).map(r => `
-        <div class="lift-item" data-tip="${esc(L(r.name))} · ${L("أفضل")} ${r.best} ${L("كجم")} · ${r.times} ${L("مجموعة")} · ${Math.round(r.vol).toLocaleString("en-US")} ${L("كجم حجم")}">
-          <span class="li-name">${esc(L(r.name))}</span>
-          <span class="li-track"><i style="width:${Math.round(r.best / max * 100)}%"></i></span>
-          <b>${r.best}<small>${L("كجم")}</small></b>
-          ${r.last > r.first ? `<span class="lift-up">+${Math.round((r.last - r.first) * 10) / 10}</span>` : ""}
+        <div class="lift-row">
+          <div class="lift-item" data-tip="${esc(L(r.name))} · ${L("أفضل")} ${r.best} ${L("كجم")} · ${r.times} ${L("مجموعة")} · ${Math.round(r.vol).toLocaleString("en-US")} ${L("كجم حجم")}">
+            <span class="li-name">${esc(L(r.name))}</span>
+            <span class="li-track"><i style="width:${Math.round(r.best / max * 100)}%"></i></span>
+            <b>${r.best}<small>${L("كجم")}</small></b>
+            ${r.last > r.first ? `<span class="lift-up">+${Math.round((r.last - r.first) * 10) / 10}</span>` : ""}
+          </div>
+          <p class="li-sub">
+            <span>${L("أقصى وزن متوقع {0} كجم", r.rm)}</span>
+            ${r.ready ? `<b class="li-go">${L("جاهز تزيد إلى {0} كجم", r.next)}</b>` : ""}
+          </p>
         </div>`).join("") + `</div>
     </div>`;
 }
@@ -234,6 +260,8 @@ export function renderProgress(){
     box.innerHTML = kpisHTML() + columnsHTML() + heatHTML() + liftsHTML() + plansHTML() + badgesHTML();
   }
   wireTips(box);
+  const rm = document.getElementById("btnRM");
+  if (rm && C.openRM) rm.onclick = () => C.openRM();
 }
 
 /* تلميح عند اللمس أو المرور */

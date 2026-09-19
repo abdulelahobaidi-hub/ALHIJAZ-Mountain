@@ -16,6 +16,16 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
+<script>
+/* يطبّق المظهر قبل أول رسم حتى ما يومض الأبيض في الوضع الليلي */
+(function(){try{
+  var t = localStorage.getItem("hejaz.theme") || "auto";
+  var d = t === "dark" || (t === "auto" && matchMedia("(prefers-color-scheme: dark)").matches);
+  document.documentElement.dataset.theme = d ? "dark" : "light";
+  var m = document.querySelector('meta[name="theme-color"]');
+  if (m) m.content = d ? "#150E15" : "#FFF6EF";
+}catch(e){}})();
+</script>
 </head>
 <body>
 
@@ -137,7 +147,7 @@
 
       <div class="today">
         <div class="today-head">
-          <span class="eyebrow">تمرين اليوم</span>
+          <span class="eyebrow" id="quickEyebrow">تمرين اليوم</span>
           <h2 id="quickName">—</h2>
           <p id="quickMeta">—</p>
         </div>
@@ -170,6 +180,11 @@
           <svg class="ic"><use href="#i-plus"/></svg><span>جدول جديد</span>
         </button>
       </div>
+      <div class="card weekplan">
+        <div class="head-row"><h3>خطة الأسبوع</h3><span class="count" id="wpNote"></span></div>
+        <div class="wp-days" id="wpDays"></div>
+      </div>
+
       <ul class="plan-list" id="planList"></ul>
     </section>
 
@@ -405,6 +420,12 @@
     <p class="sheet-name" id="sheetName">—</p>
     <p class="sheet-mail" id="sheetMail">—</p>
     <p class="sheet-sync" id="sheetSync">—</p>
+    <p class="sheet-label">المظهر</p>
+    <div class="seg" id="themeSeg">
+      <button data-theme="auto">تلقائي</button>
+      <button data-theme="light">فاتح</button>
+      <button data-theme="dark">ليلي</button>
+    </div>
     <button class="btn btn-soft" id="btnLang">English</button>
     <button class="btn btn-soft" id="btnCloseSheet">إغلاق</button>
     <button class="btn btn-danger" id="btnSignOut">تسجيل الخروج</button>
@@ -418,6 +439,32 @@
     <p class="sheet-mail" id="cfText">—</p>
     <button class="btn btn-danger" id="cfYes">نعم، احذف</button>
     <button class="btn btn-soft" id="cfNo">رجوع</button>
+  </div>
+</div>
+
+<!-- حاسبة أقصى وزن -->
+<div class="sheet-wrap" id="rm" hidden>
+  <div class="sheet">
+    <p class="sheet-name">حاسبة الأوزان</p>
+    <p class="sheet-mail">اكتب وزناً رفعته وعدد العدّات، ونحسب لك أقصى وزن متوقع لمرة واحدة.</p>
+    <div class="rm-row">
+      <label class="field"><span>الوزن (كجم)</span>
+        <input type="number" id="rmW" min="1" max="500" step="2.5" value="40" inputmode="decimal"></label>
+      <label class="field"><span>العدّات</span>
+        <input type="number" id="rmR" min="1" max="30" step="1" value="8" inputmode="numeric"></label>
+    </div>
+    <p class="rm-out"><b id="rmOut">0</b><small>كجم</small></p>
+    <div class="rm-table" id="rmTable"></div>
+    <button class="btn btn-soft" id="rmNo">إغلاق</button>
+  </div>
+</div>
+
+<!-- picker sheet -->
+<div class="sheet-wrap" id="pick" hidden>
+  <div class="sheet">
+    <p class="sheet-name" id="pkTitle">—</p>
+    <div class="pick-list" id="pkList"></div>
+    <button class="btn btn-soft" id="pkNo">إلغاء</button>
   </div>
 </div>
 

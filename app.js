@@ -77,7 +77,8 @@ const S = {
   editing: null,
   run: null,
   fb: null,              // {auth, db, mods}
-  freeze: { credits: 0, used: {}, earnedUpto: 0 }   // تجميد السلسلة
+  freeze: { credits: 0, used: {}, earnedUpto: 0 },  // تجميد السلسلة
+  week: ["","","","","","",""]                     // خطة الأسبوع: "" بدون · "rest" راحة · معرّف جدول
 };
 
 const $ = id => document.getElementById(id);
@@ -157,7 +158,7 @@ function buildSegments(p){
 /* ============================================================
    STORAGE — local always; cloud when signed in
    ============================================================ */
-const LK = { plans:"hejaz.plans", sessions:"hejaz.sessions", mode:"hejaz.mode", freeze:"hejaz.freeze" };
+const LK = { plans:"hejaz.plans", sessions:"hejaz.sessions", mode:"hejaz.mode", freeze:"hejaz.freeze", week:"hejaz.week" };
 
 function lsGet(k, fb){ try { const r = localStorage.getItem(k); return r ? JSON.parse(r) : fb; } catch(e){ return fb; } }
 function lsSet(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
@@ -188,6 +189,17 @@ async function loadAll(){
       const snap = await m.getDoc(m.doc(db, "users", S.user.uid, "meta", "freeze"));
       if (snap.exists()) S.freeze = { credits:0, used:{}, earnedUpto:0, ...snap.data() };
     } catch(err){ console.error("freeze", err); }
+  }
+
+  /* خطة الأسبوع */
+  S.week = lsGet(LK.week, ["","","","","","",""]);
+  if (!Array.isArray(S.week) || S.week.length !== 7) S.week = ["","","","","","",""];
+  if (S.mode === "cloud" && S.fb){
+    const { db, m } = S.fb;
+    try {
+      const snap = await m.getDoc(m.doc(db, "users", S.user.uid, "meta", "week"));
+      if (snap.exists() && Array.isArray(snap.data().days)) S.week = snap.data().days;
+    } catch(err){ console.error("week", err); }
   }
 
   if (!S.plans.length){
@@ -437,6 +449,23 @@ async function saveFreeze(){
   }
 }
 
+async function saveWeek(){
+  lsSet(LK.week, S.week);
+  if (S.mode === "cloud" && S.fb){
+    const { db, m } = S.fb;
+    try { await m.setDoc(m.doc(db, "users", S.user.uid, "meta", "week"), { days: S.week }); }
+    catch(err){ console.error("saveWeek", err); }
+  }
+}
+
+/* جدول اليوم حسب خطة الأسبوع */
+function todaySlot(){
+  const slot = S.week[new Date().getDay()] || "";
+  if (slot === "rest") return { rest: true, plan: S.plans[0] || null, planned: true };
+  const p = slot ? S.plans.find(x => x.id === slot) : null;
+  return { rest: false, plan: p || S.plans[0] || null, planned: !!p };
+}
+
 /* يغطّي يوماً واحداً فائتاً بين يومي تدريب — يوم راحة بدون ما تنكسر السلسلة */
 function applyFreezes(){
   const days = trainedDays(), f = S.freeze;
@@ -566,15 +595,27 @@ function renderHome(){
     ? `❄️ ${S.freeze.credits} ${S.freeze.credits === 1 ? L("تجميد") : L("تجميدات")}`
     : L("❄️ تكسب تجميداً كل ٧ أيام");
 
-  const p = S.plans[0];
-  if (p){
-    $("quickName").textContent = L(p.name);
-    $("quickMeta").textContent = L("المدة {0} · {1} جولة", mmss(planSeconds(p)), planRounds(p));
-    $("btnQuickStart").disabled = false;
-  } else {
+  const slot = todaySlot();
+  const p = slot.plan;
+  const eb = $("quickEyebrow"), btn = $("btnQuickStart");
+  const btnLabel = t => { const sp = btn.querySelector("span"); if (sp) sp.textContent = t; };
+  if (!p){
+    eb.textContent = L("تمرين اليوم");
     $("quickName").textContent = L("لا يوجد جدول");
     $("quickMeta").textContent = L("أنشئ جدولك الأول من تبويب الجداول");
-    $("btnQuickStart").disabled = true;
+    btn.disabled = true;
+  } else if (slot.rest){
+    eb.textContent = L("خطة الأسبوع");
+    $("quickName").textContent = L("اليوم راحة");
+    $("quickMeta").textContent = L("خطتك تقول ترتاح اليوم — الراحة جزء من التقدّم");
+    btnLabel(L("درّب على أي حال"));
+    btn.disabled = false;
+  } else {
+    eb.textContent = slot.planned ? L("تمرين اليوم حسب خطتك") : L("تمرين اليوم");
+    $("quickName").textContent = L(p.name);
+    $("quickMeta").textContent = L("المدة {0} · {1} جولة", mmss(planSeconds(p)), planRounds(p));
+    btnLabel(L("ابدأ التمرين"));
+    btn.disabled = false;
   }
 
   const done = S.sessions.filter(s => s.completed !== false);
@@ -583,8 +624,79 @@ function renderHome(){
   $("stMin").textContent = Math.round(S.sessions.reduce((a,s) => a + (s.secs||0), 0) / 60);
 }
 
+/* ---------- قائمة اختيار عامة ---------- */
+function pickOne(title, options){
+  return new Promise(resolve => {
+    $("pkTitle").textContent = title;
+    const box = $("pkList"); box.innerHTML = "";
+    options.forEach(o => {
+      const b = document.createElement("button");
+      b.className = "pick-item" + (o.on ? " on" : "");
+      b.innerHTML = `<b></b>${o.sub ? "<span></span>" : ""}`;
+      b.querySelector("b").textContent = o.label;
+      if (o.sub) b.querySelector("span").textContent = o.sub;
+      b.onclick = () => done(o.value);
+      box.appendChild(b);
+    });
+    const done = v => {
+      $("pick").hidden = true;
+      $("pkNo").onclick = null;
+      $("pick").onclick = null;
+      resolve(v);
+    };
+    $("pkNo").onclick = () => done(null);
+    $("pick").onclick = e => { if (e.target.id === "pick") done(null); };
+    $("pick").hidden = false;
+  });
+}
+
+/* ---------- خطة الأسبوع ---------- */
+const DAY_SHORT = ["ح","ن","ث","ر","خ","ج","س"];
+const DAY_LONG  = ["الأحد","الإثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
+
+function renderWeekPlan(){
+  const box = $("wpDays"); if (!box) return;
+  box.innerHTML = "";
+  const today = new Date().getDay();
+  let set = 0;
+  S.week.forEach((slot, i) => {
+    if (slot) set++;
+    const p = slot && slot !== "rest" ? S.plans.find(x => x.id === slot) : null;
+    const el = document.createElement("button");
+    el.className = "wp-day" + (i === today ? " is-today" : "") +
+      (slot === "rest" ? " rest" : p ? " has" : "");
+    el.innerHTML = `<i>${L(DAY_SHORT[i])}</i><span></span>`;
+    el.querySelector("span").textContent =
+      slot === "rest" ? L("راحة") : p ? L(p.name) : L("—");
+    el.onclick = () => editWeekDay(i);
+    box.appendChild(el);
+  });
+  $("wpNote").textContent = set
+    ? L("{0} من 7 أيام محددة", set)
+    : L("اضغط أي يوم وحدد جدوله");
+}
+
+async function editWeekDay(i){
+  const cur = S.week[i] || "";
+  const opts = [
+    { label: L("بدون تحديد"), value: "", on: cur === "" },
+    { label: L("يوم راحة"),   value: "rest", on: cur === "rest" },
+    ...S.plans.map(p => ({
+      label: L(p.name), value: p.id, on: cur === p.id,
+      sub: L("المدة {0} · {1} جولة", mmss(planSeconds(p)), planRounds(p))
+    }))
+  ];
+  const v = await pickOne(L(DAY_LONG[i]), opts);
+  if (v === null) return;
+  S.week[i] = v;
+  await saveWeek();
+  renderWeekPlan();
+  toast(L("انحفظت خطة الأسبوع"));
+}
+
 /* ---------- plans ---------- */
 function renderPlans(){
+  renderWeekPlan();
   const ul = $("planList"); ul.innerHTML = "";
   S.plans.forEach(p => {
     const li = document.createElement("li");
@@ -1050,7 +1162,7 @@ document.querySelectorAll(".tabbar button").forEach(b => {
   b.onclick = () => { if (S.run && S.run.running) pause(); show(b.dataset.view); };
 });
 
-$("btnQuickStart").onclick = () => { if (S.plans[0]) startRun(S.plans[0]); };
+$("btnQuickStart").onclick = () => { const p = todaySlot().plan; if (p) startRun(p); };
 $("btnNewPlan").onclick    = () => openBuilder(null);
 $("btnBuildCancel").onclick = () => show("plans");
 $("btnBuildSave").onclick   = saveBuilder;
@@ -1105,6 +1217,28 @@ $("btnAccount").onclick = () => {
   $("btnSignOut").textContent = S.mode === "cloud" ? L("تسجيل الخروج") : L("رجوع لشاشة الدخول");
   $("sheet").hidden = false;
 };
+/* ---------------- المظهر: تلقائي / فاتح / ليلي ---------------- */
+const THEME_KEY = "hejaz.theme";
+const themePref = () => { try { return localStorage.getItem(THEME_KEY) || "auto"; } catch(e){ return "auto"; } };
+function applyTheme(){
+  const pref = themePref();
+  const dark = pref === "dark" ||
+    (pref === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  document.documentElement.dataset.theme = dark ? "dark" : "light";
+  const m = document.querySelector('meta[name="theme-color"]');
+  if (m) m.content = dark ? "#150E15" : "#FFF6EF";
+  document.querySelectorAll("#themeSeg button").forEach(b =>
+    b.classList.toggle("on", b.dataset.theme === pref));
+}
+document.querySelectorAll("#themeSeg button").forEach(b => {
+  b.onclick = () => { try { localStorage.setItem(THEME_KEY, b.dataset.theme); } catch(e){} applyTheme(); };
+});
+try {
+  window.matchMedia("(prefers-color-scheme: dark)")
+    .addEventListener("change", () => { if (themePref() === "auto") applyTheme(); });
+} catch(e){}
+applyTheme();
+
 $("btnLang").textContent = lang() === "en" ? "العربية" : "English";
 $("btnLang").onclick = () => setLang(lang() === "en" ? "ar" : "en");
 $("btnCloseSheet").onclick = () => { $("sheet").hidden = true; };
@@ -1113,7 +1247,26 @@ $("sheet").addEventListener("click", e => { if (e.target.id === "sheet") $("shee
 $("confirm").addEventListener("click", e => { if (e.target.id === "confirm") $("cfNo").click(); });
 
 /* ---------- boot ---------- */
-const CTX = { S, toast, ask, dayKey, streakInfo, show, planRounds, planSeconds, addPlanCopy, badgeCount };
+/* ---------------- حاسبة أقصى وزن (إيبلي) ---------------- */
+const rmValue = (w, r) => Math.round((+w||0) * (1 + Math.max(1,+r||1) / 30) * 2) / 2;
+function renderRM(){
+  const one = rmValue($("rmW").value, $("rmR").value);
+  $("rmOut").textContent = one || 0;
+  $("rmTable").innerHTML = [95,90,85,80,75,70,60].map(pc => {
+    const w = Math.round(one * pc / 100 * 2) / 2;
+    const reps = Math.max(1, Math.round((one / w - 1) * 30)) || 1;
+    return `<div class="rm-cell"><b>${pc}%</b><span>${w} ${L("كجم")}</span><small>&times;${reps}</small></div>`;
+  }).join("");
+}
+function openRM(){
+  ["rmW","rmR"].forEach(id => { $(id).oninput = renderRM; });
+  renderRM();
+  $("rm").hidden = false;
+}
+$("rmNo").onclick = () => { $("rm").hidden = true; };
+$("rm").addEventListener("click", e => { if (e.target.id === "rm") $("rm").hidden = true; });
+
+const CTX = { S, toast, ask, dayKey, streakInfo, show, planRounds, planSeconds, addPlanCopy, badgeCount, openRM };
 initSocial(CTX);
 initProgress(CTX);
 

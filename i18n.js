@@ -550,6 +550,35 @@ const EN = {
     "Finish your first workout and the analysis starts building itself.",
 
   /* ---- اللغة ---- */
+  /* ---- الأوزان ---- */
+  "حاسبة": "Calculator",
+  "حاسبة الأوزان": "Weight calculator",
+  "اكتب وزناً رفعته وعدد العدّات، ونحسب لك أقصى وزن متوقع لمرة واحدة.":
+    "Enter a weight you lifted and the reps — we'll estimate your one-rep max.",
+  "الوزن (كجم)": "Weight (kg)",
+  "العدّات": "Reps",
+  "أقصى وزن متوقع {0} كجم": "Est. 1RM {0} kg",
+  "جاهز تزيد إلى {0} كجم": "Ready for {0} kg",
+
+  /* ---- خطة الأسبوع ---- */
+  "خطة الأسبوع": "Week plan",
+  "{0} من 7 أيام محددة": "{0} of 7 days set",
+  "اضغط أي يوم وحدد جدوله": "Tap a day to set its plan",
+  "بدون تحديد": "Not set",
+  "يوم راحة": "Rest day",
+  "اليوم راحة": "Today is a rest day",
+  "خطتك تقول ترتاح اليوم — الراحة جزء من التقدّم": "Your plan says rest today — recovery is part of it",
+  "درّب على أي حال": "Train anyway",
+  "تمرين اليوم حسب خطتك": "Today's workout, from your plan",
+  "انحفظت خطة الأسبوع": "Week plan saved",
+  "الأحد": "Sunday", "الإثنين": "Monday", "الثلاثاء": "Tuesday", "الأربعاء": "Wednesday",
+  "الخميس": "Thursday", "الجمعة": "Friday", "السبت": "Saturday",
+  "—": "—",
+
+  "المظهر": "Appearance",
+  "تلقائي": "Auto",
+  "فاتح": "Light",
+  "ليلي": "Dark",
   "اللغة": "Language",
   "English": "English",
   "العربية": "العربية"
