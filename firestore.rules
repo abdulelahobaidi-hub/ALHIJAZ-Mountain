@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// نادي جبال الحجاز — قواعد الأمان
+// نادي الجبال — قواعد الأمان
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -45,6 +45,11 @@ service cloud.firestore {
         allow delete: if inPair2() && resource.data.uid == me();
         allow update: if false;
       }
+    }
+
+    // إعداد التذكير اليومي — صاحبه فقط (المهمة المجدولة تقرأه بصلاحيات الخادم)
+    match /reminders/{userId} {
+      allow read, write: if signedIn() && me() == userId;
     }
 
     // أرقام العضوية: للبحث عن عضو برقمه

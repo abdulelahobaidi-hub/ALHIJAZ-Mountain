@@ -871,3 +871,14 @@ body.is-prep .run-clock{color:var(--soft)}
 }
 .streak-share .ic{width:19px;height:19px}
 .sh-img{width:100%;max-width:300px;border-radius:20px;box-shadow:var(--shadow-m);margin:0 auto}
+
+
+/* ---------------- التذكير اليومي ---------------- */
+.rem{display:flex;align-items:center;gap:12px;width:100%}
+.rem .switch{flex:1;justify-content:flex-start}
+.rem-time{
+  font-family:inherit;font-size:16px;color:var(--ink);background:var(--panel-2);
+  border:1.5px solid var(--rule);border-radius:12px;padding:9px 12px;cursor:pointer;
+}
+.rem-time:disabled{opacity:.5}
+.rem-note{margin:-2px 0 0;font-size:12.5px;color:var(--soft);line-height:1.5;align-self:flex-start;text-align:start}

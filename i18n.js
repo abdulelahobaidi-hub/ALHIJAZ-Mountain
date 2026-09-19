@@ -550,6 +550,23 @@ const EN = {
     "Finish your first workout and the analysis starts building itself.",
 
   /* ---- اللغة ---- */
+  /* ---- التذكير اليومي ---- */
+  "التذكير اليومي": "Daily reminder",
+  "ذكّرني بالتمرين": "Remind me to train",
+  "وقت التذكير": "Reminder time",
+  "سجّل دخولك عشان يوصلك التذكير على جوالك.": "Sign in so the reminder can reach your phone.",
+  "متصفحك ما يدعم الإشعارات.": "Your browser doesn't support notifications.",
+  "على الآيفون: افتح زر المشاركة في سفاري ثم «إضافة إلى الشاشة الرئيسية»، وافتح التطبيق من الأيقونة عشان تشتغل الإشعارات.":
+    "On iPhone: tap Share in Safari, choose Add to Home Screen, then open the app from that icon for notifications to work.",
+  "الإشعارات محظورة لهذا الموقع — فعّلها من إعدادات جهازك.":
+    "Notifications are blocked for this site — enable them in your device settings.",
+  "راح يوصلك تذكير كل يوم الساعة {0}.": "You'll get a reminder every day at {0}.",
+  "تمام — راح يوصلك تذكير كل يوم الساعة {0}.": "Done — you'll get a reminder every day at {0}.",
+  "تذكير واحد في اليوم — ما يوصلك إذا كنت خلّصت تمرينك.":
+    "One reminder a day — it's skipped if you already trained.",
+  "ما قدرنا نفعّل الإشعارات — جرّب مرة ثانية.": "Couldn't turn on notifications — try again.",
+  "وقّفنا التذكير.": "Reminder turned off.",
+
   /* ---- بطاقة الإنجاز ---- */
   "بطاقة إنجازك": "Your achievement card",
   "شارك": "Share",

@@ -10,6 +10,7 @@ import { initSocial, socialBoot, socialTeardown, socialAfterWorkout,
 import { initProgress, renderProgress, badgeCount } from "./progress.js";
 import { L, LOC, SPEECH, lang, setLang, translateStatic } from "./i18n.js";
 import { shareCard } from "./share.js";
+import { initPush, renderPush, wirePush } from "./push.js";
 
 translateStatic();
 
@@ -1283,6 +1284,7 @@ $("btnAccount").onclick = () => {
     : L("وضع محلي — البيانات على هذا الجهاز فقط. سجّل بجوجل للمزامنة.");
   $("btnSignOut").textContent = S.mode === "cloud" ? L("تسجيل الخروج") : L("رجوع لشاشة الدخول");
   $("sheet").hidden = false;
+  renderPush();
 };
 /* ---------------- المظهر: تلقائي / فاتح / ليلي ---------------- */
 const THEME_KEY = "hejaz.theme";
@@ -1381,6 +1383,8 @@ const CTX = { S, toast, ask, dayKey, streakInfo, show, planRounds, planSeconds, 
               badgeCount, openRM, openBody, delBody };
 initSocial(CTX);
 initProgress(CTX);
+initPush(CTX);
+wirePush();
 
 /* حفظ تفضيلات الصوت */
 const OPTS = lsGet("hejaz.opts", { sound:true, voice:true });
