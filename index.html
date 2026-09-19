@@ -37,6 +37,11 @@
   <symbol id="i-timer" viewBox="0 0 24 24"><path d="M9.5 3h5"/><circle cx="12" cy="13.5" r="7.2"/><path d="M12 9.8v3.7"/></symbol>
   <symbol id="i-back" viewBox="0 0 24 24"><path d="M9 5.5 16 12l-7 6.5"/></symbol>
   <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.8"/><path d="M4.8 20a7.2 7.2 0 0 1 14.4 0"/></symbol>
+  <symbol id="i-friends" viewBox="0 0 24 24"><circle cx="9" cy="8.6" r="3.4"/><path d="M2.8 19.4a6.2 6.2 0 0 1 12.4 0"/><path d="M16.2 5.6a3.4 3.4 0 0 1 0 6.6M17.4 14.2a6.2 6.2 0 0 1 3.8 5.2"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="11" height="11" rx="2.4"/><path d="M15.5 5.5h-9a2 2 0 0 0-2 2v9"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M20 4 3.5 11.2l6.6 2.4M20 4l-5.6 16-4.3-6.4M20 4l-9.9 9.6"/></symbol>
+  <symbol id="i-exit" viewBox="0 0 24 24"><path d="M14.5 8V5.8a1.8 1.8 0 0 0-1.8-1.8H6.3a1.8 1.8 0 0 0-1.8 1.8v12.4A1.8 1.8 0 0 0 6.3 20h6.4a1.8 1.8 0 0 0 1.8-1.8V16M10 12h10m0 0-3-3m3 3-3 3"/></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 15.5V4m0 0L8.2 7.8M12 4l3.8 3.8M5 14v4.2A1.8 1.8 0 0 0 6.8 20h10.4a1.8 1.8 0 0 0 1.8-1.8V14"/></symbol>
 </svg>
 
 <!-- ======================= SPLASH / AUTH ======================= -->
@@ -274,6 +279,44 @@
       <label class="switch"><input type="checkbox" id="optSound" checked><span>صوت التنبيه</span></label>
     </section>
 
+    <!-- ---------- CLUB (friends + groups) ---------- -->
+    <section class="view" id="v-club" hidden>
+      <div class="me-card" id="meCard"></div>
+
+      <div class="head-row">
+        <h2>الأصدقاء</h2>
+        <button class="btn btn-soft btn-pill" id="btnAddFriend">
+          <svg class="ic"><use href="#i-plus"/></svg><span>أضف صديق</span>
+        </button>
+      </div>
+      <ul class="friend-list" id="friendList"></ul>
+      <p class="empty" id="friendEmpty">ما عندك أصدقاء بعد. أضف صديق برقم عضويته.</p>
+
+      <div class="head-row">
+        <h2>القروبات</h2>
+        <span class="btn-row">
+          <button class="btn btn-soft btn-pill" id="btnJoinGroup">انضم بكود</button>
+          <button class="btn btn-soft btn-pill" id="btnNewGroup">
+            <svg class="ic"><use href="#i-plus"/></svg><span>قروب</span>
+          </button>
+        </span>
+      </div>
+      <ul class="group-list" id="groupList"></ul>
+      <p class="empty" id="groupEmpty">ما أنت في أي قروب. أنشئ قروب أو انضم بكود من صديق.</p>
+    </section>
+
+    <!-- ---------- GROUP DETAIL ---------- -->
+    <section class="view" id="v-group" hidden>
+      <div class="ghead" id="gHead"></div>
+      <div class="gtabs" id="gTabs">
+        <button data-gt="board" class="on">الترتيب</button>
+        <button data-gt="chal">التحدي</button>
+        <button data-gt="chat">المحادثة</button>
+        <button data-gt="plans">الجداول</button>
+      </div>
+      <div id="gBody"></div>
+    </section>
+
     <!-- ---------- HISTORY ---------- -->
     <section class="view" id="v-log" hidden>
       <div class="head-row"><h2>السجل</h2><span class="count" id="logCount"></span></div>
@@ -286,6 +329,7 @@
   <nav class="tabbar" id="tabbar">
     <button data-view="home" class="on"><svg class="ic"><use href="#i-home"/></svg><span>الرئيسية</span></button>
     <button data-view="plans"><svg class="ic"><use href="#i-list"/></svg><span>الجداول</span></button>
+    <button data-view="club"><svg class="ic"><use href="#i-friends"/></svg><span>النادي</span></button>
     <button data-view="log"><svg class="ic"><use href="#i-clock"/></svg><span>السجل</span></button>
   </nav>
 </div>
@@ -309,6 +353,17 @@
     <p class="sheet-mail" id="cfText">—</p>
     <button class="btn btn-danger" id="cfYes">نعم، احذف</button>
     <button class="btn btn-soft" id="cfNo">رجوع</button>
+  </div>
+</div>
+
+<!-- text prompt -->
+<div class="sheet-wrap" id="prompt" hidden>
+  <div class="sheet">
+    <p class="sheet-name" id="pmTitle">—</p>
+    <p class="sheet-mail" id="pmText">—</p>
+    <input type="text" id="pmInput" autocomplete="off">
+    <button class="btn btn-primary" id="pmOk">تم</button>
+    <button class="btn btn-soft" id="pmNo">إلغاء</button>
   </div>
 </div>
 

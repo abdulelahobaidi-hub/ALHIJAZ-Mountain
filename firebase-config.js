@@ -16,10 +16,10 @@
    ============================================================ */
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCZP6kXrSj9TxncWISuA81Y_TQ_dzwqDvw",
-  authDomain: "alhijaz-mountain.firebaseapp.com",
-  projectId: "alhijaz-mountain",
-  storageBucket: "alhijaz-mountain.firebasestorage.app",
-  messagingSenderId: "842612825589",
-  appId: "1:842612825589:web:183069a32d54d1bcb514bc"
+  apiKey: "PASTE_API_KEY",
+  authDomain: "PASTE_PROJECT.firebaseapp.com",
+  projectId: "PASTE_PROJECT",
+  storageBucket: "PASTE_PROJECT.appspot.com",
+  messagingSenderId: "PASTE_SENDER_ID",
+  appId: "PASTE_APP_ID"
 };

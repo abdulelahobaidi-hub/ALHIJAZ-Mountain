@@ -4,6 +4,9 @@
    - Local fallback so the app works offline / before Firebase setup
    ============================================================ */
 
+import { initSocial, socialBoot, socialTeardown, socialAfterWorkout,
+         renderClub, refreshClub, memberId } from "./social.js";
+
 /* ---------------- exercise library ---------------- */
 const LIB = [
   { key:"N", name:"نط الحبل",        work:60, rest:0,  tip:"إيقاع ثابت، الكتفين مرتخية" },
@@ -269,6 +272,7 @@ async function signOutNow(){
     try { await S.fb.authM.signOut(S.fb.auth); } catch(e){}
   }
   S.mode = null; S.user = null; S.plans = []; S.sessions = [];
+  socialTeardown();
   stopTimer();
   $("app").hidden = true; $("gate").hidden = false;
   $("gateNote").textContent = "";
@@ -299,12 +303,23 @@ function streakInfo(){
    VIEWS
    ============================================================ */
 function show(view){
-  ["home","plans","build","log","run"].forEach(v => { const el = $("v-" + v); if (el) el.hidden = (v !== view); });
-  document.querySelectorAll(".tabbar button").forEach(b => b.classList.toggle("on", b.dataset.view === view));
+  ["home","plans","build","log","run","club","group"].forEach(v => {
+    const el = $("v-" + v); if (el) el.hidden = (v !== view);
+  });
+  document.querySelectorAll(".tabbar button").forEach(b =>
+    b.classList.toggle("on", b.dataset.view === view || (view === "group" && b.dataset.view === "club")));
   if (view === "home") renderHome();
   if (view === "plans") renderPlans();
   if (view === "log") renderLog();
+  if (view === "club") renderClub();
   window.scrollTo(0, 0);
+}
+
+/* used by the club screen when copying a shared plan */
+async function addPlanCopy(p){
+  const copy = { ...p, id: uid(), updatedAt: Date.now() };
+  await savePlan(copy);
+  S.plans.sort((a,b) => (b.updatedAt||0) - (a.updatedAt||0));
 }
 
 async function enterApp(){
@@ -316,6 +331,7 @@ async function enterApp(){
   if (S.user.photo){ a.style.backgroundImage = `url("${S.user.photo}")`; $("avatarText").textContent = ""; }
   else { a.style.backgroundImage = ""; $("avatarText").textContent = (S.user.name || "ض").trim().charAt(0); }
   show("home");
+  socialBoot();
 }
 
 /* ---------- home ---------- */
@@ -619,10 +635,12 @@ async function finishRun(complete){
   const secs = complete ? r.total : doneBefore(r.idx) + r.elapsed;
 
   if (rounds > 0){
-    await saveSession({
+    const sess = {
       id: uid(), at: Date.now(), planId: r.plan.id, planName: r.plan.name,
       rounds, total: r.rounds, secs: Math.round(secs), completed: !!complete
-    });
+    };
+    await saveSession(sess);
+    socialAfterWorkout(sess);
   }
   if (complete){
     r.finished = true;
@@ -715,8 +733,10 @@ $("btnStop").onclick = async () => {
 $("btnAccount").onclick = () => {
   $("sheetName").textContent = S.user.name;
   $("sheetMail").textContent = S.user.email || "بدون بريد";
+  const mid = memberId();
   $("sheetSync").textContent = S.mode === "cloud"
-    ? "بياناتك محفوظة في حسابك وتتزامن بين أجهزتك."
+    ? (mid ? `رقم عضويتك ${mid} — بياناتك تتزامن بين أجهزتك.`
+           : "بياناتك محفوظة في حسابك وتتزامن بين أجهزتك.")
     : "وضع محلي — البيانات على هذا الجهاز فقط. سجّل بجوجل للمزامنة.";
   $("btnSignOut").textContent = S.mode === "cloud" ? "تسجيل الخروج" : "رجوع لشاشة الدخول";
   $("sheet").hidden = false;
@@ -727,6 +747,11 @@ $("sheet").addEventListener("click", e => { if (e.target.id === "sheet") $("shee
 $("confirm").addEventListener("click", e => { if (e.target.id === "confirm") $("cfNo").click(); });
 
 /* ---------- boot ---------- */
+initSocial({
+  S, toast, ask, dayKey, streakInfo, show,
+  planRounds, planSeconds, addPlanCopy
+});
+
 (async function boot(){
   if (!hasConfig()) $("btnGoogle").disabled = false;   // still clickable, shows a helpful note
   watchAuth();

@@ -1,11 +1,92 @@
 rules_version = '2';
 
-// نادي جبال الحجاز — كل مستخدم يقرأ ويكتب بياناته فقط
+// نادي جبال الحجاز — قواعد الأمان
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    function signedIn() { return request.auth != null; }
+    function me()       { return request.auth.uid; }
+
+    // بيانات كل مستخدم الخاصة: جداوله وسجل تمارينه
     match /users/{userId}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if signedIn() && me() == userId;
+    }
+
+    // الملف العام: الاسم والصورة والستريك — يقرأه الأعضاء، ويكتبه صاحبه فقط
+    match /profiles/{userId} {
+      allow read: if signedIn();
+      allow write: if signedIn() && me() == userId;
+    }
+
+    // أرقام العضوية: للبحث عن عضو برقمه
+    match /memberIds/{memberId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.uid == me();
+      allow update, delete: if false;
+    }
+
+    // الصداقات: طرفاها فقط
+    match /friendships/{pair} {
+      allow read:   if signedIn() && (resource.data.a == me() || resource.data.b == me());
+      allow create: if signedIn() && (request.resource.data.a == me() || request.resource.data.b == me());
+      allow delete: if signedIn() && (resource.data.a == me() || resource.data.b == me());
+      allow update: if false;
+    }
+
+    // أكواد الدعوة
+    match /groupCodes/{code} {
+      allow read:   if signedIn();
+      allow create: if signedIn();
+      allow update, delete: if false;
+    }
+
+    // القروبات
+    match /groups/{gid} {
+
+      function isMember() { return signedIn() && me() in resource.data.memberUids; }
+
+      allow read: if isMember();
+
+      allow create: if signedIn()
+                    && request.resource.data.ownerUid == me()
+                    && request.resource.data.memberUids == [me()];
+
+      // العضو يعدّل قروبه، وغير العضو يقدر فقط يضيف نفسه (الانضمام بالكود)
+      allow update: if isMember()
+                    || (signedIn()
+                        && me() in request.resource.data.memberUids
+                        && request.resource.data.memberUids.hasAll(resource.data.memberUids)
+                        && request.resource.data.memberUids.size() == resource.data.memberUids.size() + 1
+                        && request.resource.data.name == resource.data.name
+                        && request.resource.data.ownerUid == resource.data.ownerUid);
+
+      allow delete: if signedIn() && resource.data.ownerUid == me();
+
+      // المحادثة وسجل النشاط
+      match /messages/{mid} {
+        function member() {
+          return signedIn()
+                 && me() in get(/databases/$(database)/documents/groups/$(gid)).data.memberUids;
+        }
+        allow read:   if member();
+        allow create: if member() && request.resource.data.uid == me();
+        // التفاعل (👏) فقط — ما أحد يعدّل نص رسالة غيره
+        allow update: if member()
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['claps']);
+        allow delete: if member() && resource.data.uid == me();
+      }
+
+      // الجداول المنشورة للقروب
+      match /plans/{pid} {
+        function member() {
+          return signedIn()
+                 && me() in get(/databases/$(database)/documents/groups/$(gid)).data.memberUids;
+        }
+        allow read:   if member();
+        allow create: if member() && request.resource.data.byUid == me();
+        allow delete: if member() && resource.data.byUid == me();
+        allow update: if false;
+      }
     }
 
     match /{document=**} {
