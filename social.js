@@ -1,5 +1,5 @@
 /* ============================================================
-   نادي جبال الحجاز — الأصدقاء والقروبات
+   نادي الجبال — الأصدقاء والقروبات
    profiles/{uid}              الملف العام (رقم العضوية + الستريك)
    memberIds/{memberId}        بحث عن العضو برقمه
    friendships/{a_b}           صداقة بين طرفين
@@ -578,7 +578,7 @@ function renderGroupHead(){
     };
   }
   $("gCode").onclick = async () => {
-    const txt = `${L("انضم لقروب «")}${g.name}» ${L("في نادي جبال الحجاز")}\n${L("الكود:")} ${g.code}\n${location.origin}${location.pathname}`;
+    const txt = `${L("انضم لقروب «")}${g.name}» ${L("في نادي الجبال")}\n${L("الكود:")} ${g.code}\n${location.origin}${location.pathname}`;
     try {
       if (navigator.share) await navigator.share({ text: txt });
       else { await navigator.clipboard.writeText(txt); C.toast(L("انتسخت الدعوة")); }

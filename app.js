@@ -1,5 +1,5 @@
 /* ============================================================
-   نادي جبال الحجاز — app logic
+   نادي الجبال — app logic
    - Google sign-in + per-user Firestore database (users/{uid}/…)
    - Local fallback so the app works offline / before Firebase setup
    ============================================================ */
@@ -288,6 +288,83 @@ async function signInGoogle(){
   }
 }
 
+/* ---------------- الدخول بالبريد وكلمة السر ---------------- */
+let authMode = "in";          // "in" دخول | "up" حساب جديد
+let pendingName = "";         // الاسم وقت إنشاء الحساب قبل ما يحفظه فايربيس
+
+function authError(err){
+  const c = (err && err.code) || "";
+  const map = {
+    "auth/invalid-email":          L("البريد الإلكتروني غير صحيح"),
+    "auth/missing-email":          L("اكتب بريدك الإلكتروني"),
+    "auth/user-not-found":         L("ما فيه حساب بهذا البريد — أنشئ حساباً جديداً"),
+    "auth/wrong-password":         L("كلمة السر غير صحيحة"),
+    "auth/invalid-credential":     L("البريد أو كلمة السر غير صحيحة"),
+    "auth/invalid-login-credentials": L("البريد أو كلمة السر غير صحيحة"),
+    "auth/email-already-in-use":   L("هذا البريد مسجّل — سجّل دخولك بدل إنشاء حساب"),
+    "auth/weak-password":          L("كلمة السر قصيرة — ٦ أحرف على الأقل"),
+    "auth/too-many-requests":      L("محاولات كثيرة — انتظر شوي وجرّب مرة ثانية"),
+    "auth/network-request-failed": L("ما فيه اتصال بالإنترنت"),
+    "auth/operation-not-allowed":  L("الدخول بالبريد غير مفعّل في Firebase — فعّله من Authentication ثم Sign-in method")
+  };
+  return map[c] || (L("تعذّر تسجيل الدخول: ") + (c || err.message || ""));
+}
+
+function setAuthMode(mode){
+  authMode = mode;
+  const up = mode === "up";
+  $("fldName").hidden = !up;
+  $("btnMailGo").textContent = up ? L("أنشئ الحساب") : L("دخول");
+  $("btnAuthMode").textContent = up ? L("عندك حساب؟ سجّل دخولك") : L("ما عندك حساب؟ أنشئ حساب");
+  $("auPass").setAttribute("autocomplete", up ? "new-password" : "current-password");
+  $("gateNote").textContent = "";
+}
+
+async function mailSubmit(e){
+  if (e) e.preventDefault();
+  if (!hasConfig()){
+    $("gateNote").textContent = L("إعدادات Firebase غير مكتملة — افتح ملف firebase-config.js والصق بيانات مشروعك.");
+    return;
+  }
+  const mail = $("auMail").value.trim();
+  const pass = $("auPass").value;
+  const name = $("auName").value.trim();
+  if (!mail){ $("gateNote").textContent = L("اكتب بريدك الإلكتروني"); return; }
+  if (pass.length < 6){ $("gateNote").textContent = L("كلمة السر قصيرة — ٦ أحرف على الأقل"); return; }
+
+  $("btnMailGo").disabled = true;
+  $("gateNote").textContent = L("لحظة…");
+  try {
+    const { auth, authM } = await initFirebase();
+    if (authMode === "up"){
+      pendingName = name;
+      const cred = await authM.createUserWithEmailAndPassword(auth, mail, pass);
+      if (name){ try { await authM.updateProfile(cred.user, { displayName: name }); } catch(err){} }
+    } else {
+      await authM.signInWithEmailAndPassword(auth, mail, pass);
+    }
+    $("auPass").value = "";
+  } catch(err){
+    console.error(err);
+    $("gateNote").textContent = authError(err);
+  } finally {
+    $("btnMailGo").disabled = false;
+  }
+}
+
+async function forgotPass(){
+  const mail = $("auMail").value.trim();
+  if (!mail){ $("gateNote").textContent = L("اكتب بريدك الإلكتروني أولاً ثم اضغط «نسيت كلمة السر»"); return; }
+  try {
+    const { auth, authM } = await initFirebase();
+    await authM.sendPasswordResetEmail(auth, mail);
+    $("gateNote").textContent = L("أرسلنا رابط تغيير كلمة السر على بريدك");
+  } catch(err){
+    console.error(err);
+    $("gateNote").textContent = authError(err);
+  }
+}
+
 async function watchAuth(){
   if (!hasConfig()){
     $("gateNote").textContent = L("لتفعيل المزامنة بين أجهزتك: أنشئ مشروع Firebase والصق بياناته في firebase-config.js");
@@ -299,7 +376,8 @@ async function watchAuth(){
     authM.onAuthStateChanged(auth, async (u) => {
       if (u){
         S.mode = "cloud";
-        S.user = { uid:u.uid, name:u.displayName || L("صديق الجبال"), email:u.email || "", photo:u.photoURL || "" };
+        S.user = { uid:u.uid, name:u.displayName || pendingName || L("صديق الجبال"), email:u.email || "", photo:u.photoURL || "" };
+        pendingName = "";
         lsSet(LK.mode, "cloud");
         await enterApp();
       } else if (S.mode === "cloud"){
@@ -332,6 +410,16 @@ async function signOutNow(){
   stopTimer();
   $("app").hidden = true; $("gate").hidden = false;
   $("gateNote").textContent = "";
+  resetMailForm();
+}
+
+/* يرجّع نموذج البريد لحالته الأولى */
+function resetMailForm(){
+  const f = $("mailForm"); if (!f) return;
+  f.hidden = true;
+  $("btnMailToggle").hidden = false;
+  $("auMail").value = ""; $("auPass").value = ""; $("auName").value = "";
+  setAuthMode("in");
 }
 
 /* ============================================================
@@ -946,6 +1034,17 @@ function renderLog(){
    ============================================================ */
 $("btnGoogle").onclick = signInGoogle;
 $("btnGuest").onclick  = goGuest;
+
+/* الدخول بالبريد */
+$("btnMailToggle").onclick = () => {
+  $("mailForm").hidden = false;
+  $("btnMailToggle").hidden = true;
+  setAuthMode("in");
+  $("auMail").focus();
+};
+$("mailForm").addEventListener("submit", mailSubmit);
+$("btnAuthMode").onclick = () => setAuthMode(authMode === "up" ? "in" : "up");
+$("btnForgot").onclick   = forgotPass;
 
 document.querySelectorAll(".tabbar button").forEach(b => {
   b.onclick = () => { if (S.run && S.run.running) pause(); show(b.dataset.view); };

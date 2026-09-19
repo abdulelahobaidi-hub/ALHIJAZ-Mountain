@@ -1,5 +1,5 @@
 /* ============================================================
-   نادي جبال الحجاز — اللغة  |  Hijaz Mountains Club — language
+   نادي الجبال — اللغة  |  Mountains Club — language
    العربية هي لغة المصدر؛ الإنجليزية من هذا القاموس
    ============================================================ */
 const KEY = "hejaz.lang";
@@ -44,7 +44,7 @@ export function translateStatic(){
       if (v && EN[v.trim()] != null) el.setAttribute(a, EN[v.trim()]);
     });
   });
-  if (EN["نادي جبال الحجاز"]) document.title = EN["نادي جبال الحجاز"];
+  if (EN["نادي الجبال"]) document.title = EN["نادي الجبال"];
 }
 
 /* ============================================================
@@ -52,14 +52,40 @@ export function translateStatic(){
    ============================================================ */
 const EN = {
   /* ---- الهوية ---- */
-  "نادي جبال الحجاز": "Hijaz Mountains Club",
-  "جبال الحجاز": "Hijaz Mountains",
-  "نادي جبال الحجاز — مؤقت تمارين وجداول رياضية ومتابعة الاستمرارية":
-    "Hijaz Mountains Club — interval timer, workout plans and streak tracking",
+  "نادي الجبال": "Mountains Club",
+  "نادي الجبال — مؤقت تمارين وجداول رياضية ومتابعة الاستمرارية":
+    "Mountains Club — interval timer, workout plans and streak tracking",
   "كل تمرين خطوة في الطريق. سجّل دخولك وابدأ الصعود.":
     "Every workout is a step on the path. Sign in and start climbing.",
   "تسجيل الدخول بحساب جوجل": "Sign in with Google",
   "أكمل بدون حساب على هذا الجهاز": "Continue without an account on this device",
+
+  /* ---- الدخول بالبريد ---- */
+  "الدخول بالبريد وكلمة السر": "Sign in with email and password",
+  "اسمك": "Your name",
+  "الاسم اللي يشوفه أصدقاؤك": "The name your friends see",
+  "البريد الإلكتروني": "Email",
+  "كلمة السر": "Password",
+  "٦ أحرف على الأقل": "At least 6 characters",
+  "دخول": "Sign in",
+  "أنشئ الحساب": "Create account",
+  "ما عندك حساب؟ أنشئ حساب": "No account? Create one",
+  "عندك حساب؟ سجّل دخولك": "Already have an account? Sign in",
+  "نسيت كلمة السر": "Forgot password",
+  "لحظة…": "One moment…",
+  "اكتب بريدك الإلكتروني": "Enter your email",
+  "اكتب بريدك الإلكتروني أولاً ثم اضغط «نسيت كلمة السر»": "Enter your email first, then tap Forgot password",
+  "أرسلنا رابط تغيير كلمة السر على بريدك": "We sent a password reset link to your email",
+  "البريد الإلكتروني غير صحيح": "That email isn't valid",
+  "ما فيه حساب بهذا البريد — أنشئ حساباً جديداً": "No account with that email — create one",
+  "كلمة السر غير صحيحة": "Wrong password",
+  "البريد أو كلمة السر غير صحيحة": "Email or password is incorrect",
+  "هذا البريد مسجّل — سجّل دخولك بدل إنشاء حساب": "That email is already registered — sign in instead",
+  "كلمة السر قصيرة — ٦ أحرف على الأقل": "Password too short — at least 6 characters",
+  "محاولات كثيرة — انتظر شوي وجرّب مرة ثانية": "Too many attempts — wait a bit and try again",
+  "ما فيه اتصال بالإنترنت": "No internet connection",
+  "الدخول بالبريد غير مفعّل في Firebase — فعّله من Authentication ثم Sign-in method":
+    "Email sign-in isn't enabled in Firebase — turn it on under Authentication → Sign-in method",
 
   /* ---- مكتبة التمارين ---- */
   "نط الحبل": "Jump rope",
@@ -381,7 +407,7 @@ const EN = {
   "انحفظت الصورة": "Photo saved",
   "تعذّر حفظ الصورة": "Couldn't save the photo",
   "انضم لقروب «": "Join the group “",
-  "في نادي جبال الحجاز": "on Hijaz Mountains Club",
+  "في نادي الجبال": "on Mountains Club",
   "الكود:": "Code:",
   "انتسخت الدعوة": "Invite copied",
   "جارٍ التحميل…": "Loading…",
@@ -481,7 +507,7 @@ const EN = {
   "١٤ يوماً متتالياً": "14 days in a row",
   "شهر كامل": "A full month",
   "٣٠ يوماً متتالياً": "30 days in a row",
-  "قمة الحجاز": "Hijaz summit",
+  "قمة الجبال": "The summit",
   "١٠٠ يوم متتالٍ": "100 days in a row",
   "٥٠٠ دقيقة": "500 minutes",
   "٥٠٠ دقيقة تدريب": "500 minutes of training",
