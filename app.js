@@ -8,30 +8,57 @@ import { initSocial, socialBoot, socialTeardown, socialAfterWorkout,
          renderClub, refreshClub, memberId,
          publishMyPlan, unpublishMyPlan } from "./social.js";
 import { initProgress, renderProgress, badgeCount } from "./progress.js";
+import { L, LOC, SPEECH, lang, setLang, translateStatic } from "./i18n.js";
+
+translateStatic();
 
 /* ---------------- exercise library ---------------- */
 const LIB = [
-  { key:"N", name:"نط الحبل",        work:60, rest:0,  tip:"إيقاع ثابت، الكتفين مرتخية" },
-  { key:"P", name:"بوش اب",          work:45, rest:15, tip:"الجسم خط مستقيم من الكعب للرأس" },
-  { key:"S", name:"ضغط أكتاف",       work:45, rest:15, tip:"شدّ البطن ولا تقوّس ظهرك" },
-  { key:"B", name:"بلانك",           work:45, rest:15, tip:"ثبّت الحوض، لا ترفع ردفك" },
-  { key:"Q", name:"سكوات",           work:45, rest:15, tip:"الكعب ثابت على الأرض" },
-  { key:"L", name:"لانجز",           work:45, rest:15, tip:"الركبة الأمامية فوق الكاحل" },
-  { key:"M", name:"متسلق الجبل",     work:40, rest:20, tip:"الحوض منخفض والإيقاع سريع" },
-  { key:"U", name:"بيربي",           work:40, rest:20, tip:"نزول ودفع وقفزة — نفس منتظم" },
-  { key:"C", name:"تمارين البطن",    work:45, rest:15, tip:"ارفع بالبطن لا بالرقبة" },
-  { key:"H", name:"جسر الورك",       work:45, rest:15, tip:"اعصر المؤخرة في الأعلى" },
-  { key:"J", name:"قفز الفتح والضم", work:45, rest:15, tip:"نزول خفيف على مشط القدم" },
-  { key:"T", name:"تمديد الظهر",     work:40, rest:20, tip:"ارفع الصدر ببطء" }
+  { key:"N", name:L("نط الحبل"),        work:60, rest:0,  tip:L("إيقاع ثابت، الكتفين مرتخية") },
+  { key:"P", name:L("بوش اب"),          work:45, rest:15, tip:L("الجسم خط مستقيم من الكعب للرأس") },
+  { key:"S", name:L("ضغط أكتاف"),       work:45, rest:15, tip:L("شدّ البطن ولا تقوّس ظهرك") },
+  { key:"B", name:L("بلانك"),           work:45, rest:15, tip:L("ثبّت الحوض، لا ترفع ردفك") },
+  { key:"Q", name:L("سكوات"),           work:45, rest:15, tip:L("الكعب ثابت على الأرض") },
+  { key:"L", name:L("لانجز"),           work:45, rest:15, tip:L("الركبة الأمامية فوق الكاحل") },
+  { key:"M", name:L("متسلق الجبل"),     work:40, rest:20, tip:L("الحوض منخفض والإيقاع سريع") },
+  { key:"U", name:L("بيربي"),           work:40, rest:20, tip:L("نزول ودفع وقفزة — نفس منتظم") },
+  { key:"C", name:L("تمارين البطن"),    work:45, rest:15, tip:L("ارفع بالبطن لا بالرقبة") },
+  { key:"H", name:L("جسر الورك"),       work:45, rest:15, tip:L("اعصر المؤخرة في الأعلى") },
+  { key:"J", name:L("قفز الفتح والضم"), work:45, rest:15, tip:L("نزول خفيف على مشط القدم") },
+  { key:"T", name:L("تمديد الظهر"),     work:40, rest:20, tip:L("ارفع الصدر ببطء") }
 ];
-const byKey = k => LIB.find(e => e.key === k);
+
+/* ---------------- تمارين بأوزان (مجموعات × عدّات × كجم) ---------------- */
+const WLIB = [
+  { key:"WB", name:L("بنش برس"),         sets:3, reps:10, weight:20, rest:75, tip:L("نزّل للصدر ببطء وادفع بثبات") },
+  { key:"WQ", name:L("سكوات بار"),       sets:4, reps:10, weight:30, rest:90, tip:L("الظهر مستقيم والكعب ثابت") },
+  { key:"WD", name:L("ديدليفت"),         sets:3, reps:8,  weight:40, rest:90, tip:L("ارفع بالورك والظهر محايد") },
+  { key:"WT", name:L("سحب أمامي"),       sets:3, reps:10, weight:25, rest:75, tip:L("اسحب للصدر واعصر اللوح") },
+  { key:"WR", name:L("تجديف بالدمبل"),   sets:3, reps:12, weight:12, rest:60, tip:L("اسحب للخصر والمرفق قريب") },
+  { key:"WS", name:L("ضغط أكتاف دمبل"),  sets:3, reps:10, weight:10, rest:60, tip:L("شدّ البطن ولا تقوّس ظهرك") },
+  { key:"WL", name:L("رفرفة جانبي"),     sets:3, reps:14, weight:6,  rest:45, tip:L("ارفع لمستوى الكتف فقط") },
+  { key:"WC", name:L("بايسبس بار"),      sets:3, reps:12, weight:15, rest:60, tip:L("المرفق ثابت بجنبك") },
+  { key:"WX", name:L("ترايسبس كيبل"),    sets:3, reps:12, weight:15, rest:60, tip:L("مدّ الذراع كاملاً") },
+  { key:"WG", name:L("دفع أرجل"),        sets:3, reps:12, weight:50, rest:75, tip:L("لا تقفل الركبة في الأعلى") },
+  { key:"WH", name:L("مرجحة كيتل بيل"),  sets:3, reps:15, weight:16, rest:60, tip:L("الدفع من الورك لا من الذراع") },
+  { key:"WF", name:L("سمانة واقف"),      sets:3, reps:15, weight:20, rest:45, tip:L("ارتفاع كامل وثبات ثانية") }
+];
+const REP_SEC = 3.5;                              // تقدير زمن العدّة الواحدة
+const byKey = k => LIB.find(e => e.key === k) || WLIB.find(e => e.key === k);
+const isReps = it => it && it.mode === "reps";
+const estWork = it => isReps(it)
+  ? Math.round(Math.max(1,+it.sets||1) * Math.max(1,+it.reps||1) * REP_SEC)
+  : (+it.work||0);
+const estRest = it => isReps(it) ? (+it.rest||0) * Math.max(1,+it.sets||1) : (+it.rest||0);
+const itemVolume = it => isReps(it)
+  ? Math.max(1,+it.sets||1) * Math.max(1,+it.reps||1) * (+it.weight||0) : 0;
 
 /* ---------------- default plan ---------------- */
 const DEFAULT_SEQ = ["N","P","N","S","N","B","N","P","N","Q","N","S","N","B","N","P","N","Q","N","B"];
 function defaultPlan(){
   return {
     id: "abdulelah-default",
-    name: "جدول عبدالاله الرياضي",
+    name: L("جدول عبدالاله الرياضي"),
     target: 25, repeat: 1, warm: 180, cool: 120,
     items: DEFAULT_SEQ.map(k => {
       const e = byKey(k);
@@ -60,7 +87,7 @@ const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 
 const dayKey = d => { const x = new Date(d); return x.getFullYear()+"-"+pad(x.getMonth()+1)+"-"+pad(x.getDate()); };
 
 /* custom confirm sheet — avoids the browser's own dialog */
-function ask(title, text, yes = "نعم، احذف"){
+function ask(title, text, yes = L("نعم، احذف")){
   return new Promise(resolve => {
     $("cfTitle").textContent = title;
     $("cfText").textContent = text;
@@ -85,7 +112,7 @@ function toast(msg, ms = 2600){
 
 /* ---------------- plan maths ---------------- */
 function planSeconds(p){
-  const one = p.items.reduce((a,i) => a + (+i.work||0) + (+i.rest||0), 0);
+  const one = p.items.reduce((a,i) => a + estWork(i) + estRest(i), 0);
   const reps = Math.max(1, +p.repeat || 1);
   const lastRest = p.items.length ? (+p.items[p.items.length-1].rest || 0) : 0;
   return (+p.warm||0) + one*reps - lastRest + (+p.cool||0);
@@ -96,20 +123,34 @@ function buildSegments(p){
   const segs = [];
   const reps = Math.max(1, +p.repeat || 1);
   const total = planRounds(p);
-  if (+p.warm > 0) segs.push({ kind:"prep", phase:"إحماء", name:"إحماء وتدوير مفاصل", dur:+p.warm, tip:"ارفع نبضك بالتدريج" });
+  if (+p.warm > 0) segs.push({ kind:"prep", phase:L("إحماء"), name:L("إحماء وتدوير مفاصل"), dur:+p.warm, tip:L("ارفع نبضك بالتدريج") });
   let r = 0;
   for (let rep = 0; rep < reps; rep++){
     p.items.forEach((it, i) => {
       r++;
       const src = byKey(it.key);
-      segs.push({ kind:"work", phase:`الجولة ${r} من ${total}`, name:it.name, dur:+it.work||30,
-                  tip: src ? src.tip : "ركّز على الأداء الصحيح", round:r });
-      const isLast = (rep === reps-1) && (i === p.items.length-1);
-      if ((+it.rest||0) > 0 && !isLast)
-        segs.push({ kind:"rest", phase:"راحة", name:"استعد", dur:+it.rest, tip:"تنفّس عميق", round:r });
+      const tip = src ? src.tip : L("ركّز على الأداء الصحيح");
+      const lastItem = (rep === reps-1) && (i === p.items.length-1);
+
+      if (isReps(it)){
+        const sets = Math.max(1, +it.sets||1);
+        for (let s = 1; s <= sets; s++){
+          segs.push({ kind:"reps", phase:L("الجولة {0} من {1}", r, total), name:L(it.name),
+                      dur: Math.round(Math.max(1,+it.reps||1) * REP_SEC), open:true, round:r,
+                      set:s, sets, reps:Math.max(1,+it.reps||1), weight:+it.weight||0, item:it, tip });
+          if ((+it.rest||0) > 0 && !(lastItem && s === sets))
+            segs.push({ kind:"rest", phase:L("راحة"), name:L("استعد"), dur:+it.rest, tip:L("تنفّس عميق"), round:r });
+        }
+        return;
+      }
+
+      segs.push({ kind:"work", phase:L("الجولة {0} من {1}", r, total), name:L(it.name), dur:+it.work||30,
+                  tip, round:r });
+      if ((+it.rest||0) > 0 && !lastItem)
+        segs.push({ kind:"rest", phase:L("راحة"), name:L("استعد"), dur:+it.rest, tip:L("تنفّس عميق"), round:r });
     });
   }
-  if (+p.cool > 0) segs.push({ kind:"prep", phase:"تهدئة", name:"إطالة", dur:+p.cool, tip:"أطل كل عضلة ٢٠ ثانية" });
+  if (+p.cool > 0) segs.push({ kind:"prep", phase:L("تهدئة"), name:L("إطالة"), dur:+p.cool, tip:L("أطل كل عضلة ٢٠ ثانية") });
   return segs;
 }
 
@@ -132,7 +173,7 @@ async function loadAll(){
       S.sessions = ss.docs.map(d => ({ id:d.id, ...d.data() }));
     } catch(err){
       console.error(err);
-      toast("تعذّر تحميل بياناتك من السحابة");
+      toast(L("تعذّر تحميل بياناتك من السحابة"));
       S.plans = lsGet(LK.plans, []); S.sessions = lsGet(LK.sessions, []);
     }
   } else {
@@ -166,7 +207,7 @@ async function savePlan(p){
   if (S.mode === "cloud" && S.fb){
     const { db, m } = S.fb;
     try { await m.setDoc(m.doc(db, "users", S.user.uid, "plans", p.id), p); }
-    catch(err){ console.error(err); toast("انحفظ محلياً — تعذّر الحفظ في السحابة"); }
+    catch(err){ console.error(err); toast(L("انحفظ محلياً — تعذّر الحفظ في السحابة")); }
     publishMyPlan(p);          // نسخة معروضة لأصدقائي
   }
 }
@@ -187,7 +228,7 @@ async function deleteSession(id){
   if (S.mode === "cloud" && S.fb){
     const { db, m } = S.fb;
     try { await m.deleteDoc(m.doc(db, "users", S.user.uid, "sessions", id)); }
-    catch(err){ console.error(err); toast("انحذف محلياً — تعذّر الحذف من السحابة"); }
+    catch(err){ console.error(err); toast(L("انحذف محلياً — تعذّر الحذف من السحابة")); }
   }
 }
 
@@ -226,10 +267,10 @@ async function initFirebase(){
 
 async function signInGoogle(){
   if (!hasConfig()){
-    $("gateNote").textContent = "إعدادات Firebase غير مكتملة — افتح ملف firebase-config.js والصق بيانات مشروعك.";
+    $("gateNote").textContent = L("إعدادات Firebase غير مكتملة — افتح ملف firebase-config.js والصق بيانات مشروعك.");
     return;
   }
-  $("gateNote").textContent = "جارٍ فتح نافذة جوجل…";
+  $("gateNote").textContent = L("جارٍ فتح نافذة جوجل…");
   try {
     const { auth, authM } = await initFirebase();
     const provider = new authM.GoogleAuthProvider();
@@ -243,13 +284,13 @@ async function signInGoogle(){
     }
   } catch(err){
     console.error(err);
-    $("gateNote").textContent = "تعذّر تسجيل الدخول: " + (err.code || err.message);
+    $("gateNote").textContent = L("تعذّر تسجيل الدخول: ") + (err.code || err.message);
   }
 }
 
 async function watchAuth(){
   if (!hasConfig()){
-    $("gateNote").textContent = "لتفعيل المزامنة بين أجهزتك: أنشئ مشروع Firebase والصق بياناته في firebase-config.js";
+    $("gateNote").textContent = L("لتفعيل المزامنة بين أجهزتك: أنشئ مشروع Firebase والصق بياناته في firebase-config.js");
     return;
   }
   try {
@@ -258,7 +299,7 @@ async function watchAuth(){
     authM.onAuthStateChanged(auth, async (u) => {
       if (u){
         S.mode = "cloud";
-        S.user = { uid:u.uid, name:u.displayName || "صديق الجبال", email:u.email || "", photo:u.photoURL || "" };
+        S.user = { uid:u.uid, name:u.displayName || L("صديق الجبال"), email:u.email || "", photo:u.photoURL || "" };
         lsSet(LK.mode, "cloud");
         await enterApp();
       } else if (S.mode === "cloud"){
@@ -269,13 +310,13 @@ async function watchAuth(){
     });
   } catch(err){
     console.error(err);
-    $("gateNote").textContent = "تعذّر تحميل Firebase — تأكد من الاتصال بالإنترنت.";
+    $("gateNote").textContent = L("تعذّر تحميل Firebase — تأكد من الاتصال بالإنترنت.");
   }
 }
 
 async function goGuest(){
   S.mode = "local";
-  S.user = { uid:"local", name:"ضيف", email:"", photo:"" };
+  S.user = { uid:"local", name:L("ضيف"), email:"", photo:"" };
   lsSet(LK.mode, "local");
   await enterApp();
 }
@@ -371,9 +412,9 @@ async function refreshStreak(){
   const usedNow = applyFreezes();
   const gained = awardFreezes(streakInfo().current);
   if (usedNow || gained) await saveFreeze();
-  if (usedNow) toast(usedNow === 1 ? "استخدمنا تجميداً — سلسلتك محفوظة ❄️"
-                                   : `استخدمنا ${usedNow} تجميدات — سلسلتك محفوظة ❄️`);
-  else if (gained) toast(`كسبت ${gained === 1 ? "تجميد" : gained + " تجميدات"} ❄️`);
+  if (usedNow) toast(usedNow === 1 ? L("استخدمنا تجميداً — سلسلتك محفوظة ❄️")
+                                   : L("استخدمنا {0} تجميدات — سلسلتك محفوظة ❄️", usedNow));
+  else if (gained) toast(L("كسبت {0} ❄️", gained === 1 ? L("تجميد") : gained + L(" تجميدات")));
 }
 
 /* ============================================================
@@ -404,10 +445,10 @@ async function enterApp(){
   await loadAll();
   $("gate").hidden = true;
   $("app").hidden = false;
-  $("topSub").textContent = S.mode === "cloud" ? "أهلاً " + S.user.name : "وضع محلي على هذا الجهاز";
+  $("topSub").textContent = S.mode === "cloud" ? L("أهلاً ") + S.user.name : L("وضع محلي على هذا الجهاز");
   const a = $("btnAccount");
   if (S.user.photo){ a.style.backgroundImage = `url("${S.user.photo}")`; $("avatarText").textContent = ""; }
-  else { a.style.backgroundImage = ""; $("avatarText").textContent = (S.user.name || "ض").trim().charAt(0); }
+  else { a.style.backgroundImage = ""; $("avatarText").textContent = (S.user.name || L("ض")).trim().charAt(0); }
   await refreshStreak();
   show("home");
   socialBoot();
@@ -418,11 +459,11 @@ function renderHome(){
   const st = streakInfo();
   $("streakNum").textContent = st.current;
   $("streakSub").textContent =
-    st.current === 0 ? "ابدأ اليوم وخلّ العدّاد يمشي" :
-    st.todayDone     ? "أنجزت تمرين اليوم — استمر" :
-                       "درّب اليوم عشان ما تنكسر السلسلة";
+    st.current === 0 ? L("ابدأ اليوم وخلّ العدّاد يمشي") :
+    st.todayDone     ? L("أنجزت تمرين اليوم — استمر") :
+                       L("درّب اليوم عشان ما تنكسر السلسلة");
 
-  const names = ["ح","ن","ث","ر","خ","ج","س"];   // أحد إثنين ثلاثاء أربعاء خميس جمعة سبت
+  const names = [L("ح"),L("ن"),L("ث"),L("ر"),L("خ"),L("ج"),L("س")];   // أحد إثنين ثلاثاء أربعاء خميس جمعة سبت
   let h = "";
   for (let i = 6; i >= 0; i--){
     const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - i);
@@ -434,17 +475,17 @@ function renderHome(){
   }
   $("week").innerHTML = h;
   $("freezeChip").innerHTML = S.freeze.credits
-    ? `❄️ ${S.freeze.credits} ${S.freeze.credits === 1 ? "تجميد" : "تجميدات"}`
-    : `❄️ تكسب تجميداً كل ٧ أيام`;
+    ? `❄️ ${S.freeze.credits} ${S.freeze.credits === 1 ? L("تجميد") : L("تجميدات")}`
+    : L("❄️ تكسب تجميداً كل ٧ أيام");
 
   const p = S.plans[0];
   if (p){
-    $("quickName").textContent = p.name;
-    $("quickMeta").textContent = `المدة ${mmss(planSeconds(p))} · ${planRounds(p)} جولة`;
+    $("quickName").textContent = L(p.name);
+    $("quickMeta").textContent = L("المدة {0} · {1} جولة", mmss(planSeconds(p)), planRounds(p));
     $("btnQuickStart").disabled = false;
   } else {
-    $("quickName").textContent = "لا يوجد جدول";
-    $("quickMeta").textContent = "أنشئ جدولك الأول من تبويب الجداول";
+    $("quickName").textContent = L("لا يوجد جدول");
+    $("quickMeta").textContent = L("أنشئ جدولك الأول من تبويب الجداول");
     $("btnQuickStart").disabled = true;
   }
 
@@ -460,10 +501,10 @@ function renderPlans(){
   S.plans.forEach(p => {
     const li = document.createElement("li");
     li.innerHTML =
-      `<button class="plan-go" aria-label="ابدأ التمرين"><svg class="ic"><use href="#i-play"/></svg></button>
-       <div class="plan-main"><b></b><span>المدة ${mmss(planSeconds(p))} · ${planRounds(p)} جولة</span></div>
-       <button class="plan-edit" aria-label="تعديل"><svg class="ic"><use href="#i-edit"/></svg></button>`;
-    li.querySelector("b").textContent = p.name;
+      `<button class="plan-go" aria-label="${L("ابدأ التمرين")}"><svg class="ic"><use href="#i-play"/></svg></button>
+       <div class="plan-main"><b></b><span>${L("المدة")} ${mmss(planSeconds(p))} · ${planRounds(p)} ${L("جولة")}</span></div>
+       <button class="plan-edit" aria-label="${L("تعديل")}"><svg class="ic"><use href="#i-edit"/></svg></button>`;
+    li.querySelector("b").textContent = L(p.name);
     li.querySelector(".plan-go").onclick = () => startRun(p);
     li.querySelector(".plan-main").onclick = () => startRun(p);
     li.querySelector(".plan-edit").onclick = () => openBuilder(p);
@@ -473,7 +514,7 @@ function renderPlans(){
   const more = $("logMore");
   if (S.sessions.length > logLimit){
     more.hidden = false;
-    more.textContent = `عرض المزيد (${S.sessions.length - logLimit})`;
+    more.textContent = L("عرض المزيد ({0})", S.sessions.length - logLimit);
     more.onclick = () => { logLimit += 20; renderLog(); };
   } else more.hidden = true;
 }
@@ -483,26 +524,35 @@ function openBuilder(plan){
   S.editing = plan
     ? JSON.parse(JSON.stringify(plan))
     : { id: uid(), name:"", target:20, repeat:1, warm:180, cool:120, items:[] };
-  $("buildTitle").textContent = plan ? "تعديل الجدول" : "جدول جديد";
+  $("buildTitle").textContent = plan ? L("تعديل الجدول") : L("جدول جديد");
   $("planName").value   = S.editing.name;
   $("planTarget").value = String(S.editing.target ?? 20);
   $("planRepeat").value = String(S.editing.repeat || 1);
   $("planWarm").value   = String(S.editing.warm ?? 0);
   $("planCool").value   = String(S.editing.cool ?? 0);
   $("btnBuildDelete").hidden = !plan || S.plans.length <= 1;
+  pickKind = (plan && plan.items.some(isReps) && !plan.items.some(i => !isReps(i))) ? "reps" : "time";
   renderPicker();
   renderBuild();
   show("build");
 }
 
+let pickKind = "time";
 function renderPicker(){
   const box = $("picker"); box.innerHTML = "";
-  LIB.forEach(e => {
+  document.querySelectorAll("#pickTabs button").forEach(b =>
+    b.classList.toggle("on", b.dataset.pt === pickKind));
+
+  (pickKind === "reps" ? WLIB : LIB).forEach(e => {
     const b = document.createElement("button");
-    b.innerHTML = `<span></span><small>${e.work}ث</small>`;
+    b.innerHTML = pickKind === "reps"
+      ? `<span></span><small><bdi>${e.sets}×${e.reps}</bdi> · ${e.weight} ${L("كجم")}</small>`
+      : `<span></span><small>${e.work}${L("ث")}</small>`;
     b.querySelector("span").textContent = e.name;
     b.onclick = () => {
-      S.editing.items.push({ key:e.key, name:e.name, work:e.work, rest:e.rest });
+      S.editing.items.push(pickKind === "reps"
+        ? { key:e.key, name:e.name, mode:"reps", sets:e.sets, reps:e.reps, weight:e.weight, rest:e.rest }
+        : { key:e.key, name:e.name, work:e.work, rest:e.rest });
       renderBuild();
     };
     box.appendChild(b);
@@ -517,20 +567,35 @@ function renderBuild(){
 
   p.items.forEach((it, i) => {
     const li = document.createElement("li");
+    const nums = isReps(it)
+      ? `<span class="row-nums reps">
+           <label>${L("مجموعات")}<input type="number" min="1" max="12" step="1" class="in-sets" value="${it.sets}"></label>
+           <label>${L("عدّات")}<input type="number" min="1" max="60" step="1" class="in-reps" value="${it.reps}"></label>
+           <label>${L("كجم")}<input type="number" min="0" max="500" step="2.5" class="in-kg" value="${it.weight}"></label>
+           <label>${L("راحة")}<input type="number" min="0" max="300" step="5" class="in-rest" value="${it.rest}"></label>
+         </span>`
+      : `<span class="row-nums">
+           <label>${L("عمل")}<input type="number" min="5" max="600" step="5" class="in-work" value="${it.work}"></label>
+           <label>${L("راحة")}<input type="number" min="0" max="300" step="5" class="in-rest" value="${it.rest}"></label>
+         </span>`;
     li.innerHTML =
       `<span class="row-badge">${i+1}</span>
        <span class="row-name"></span>
-       <span class="row-nums">
-         <label>عمل<input type="number" min="5" max="600" step="5" class="in-work" value="${it.work}"></label>
-         <label>راحة<input type="number" min="0" max="300" step="5" class="in-rest" value="${it.rest}"></label>
-       </span>
+       ${nums}
        <span class="row-tools">
-         <button class="up" aria-label="أعلى">▲</button>
-         <button class="dn" aria-label="أسفل">▼</button>
-         <button class="row-del del" aria-label="حذف">✕</button>
+         <button class="up" aria-label="${L("أعلى")}">▲</button>
+         <button class="dn" aria-label="${L("أسفل")}">▼</button>
+         <button class="row-del del" aria-label="${L("حذف")}">✕</button>
        </span>`;
-    li.querySelector(".row-name").textContent = it.name;
-    li.querySelector(".in-work").oninput = e => { it.work = Math.max(5, +e.target.value || 5); updateGauge(); };
+    li.querySelector(".row-name").textContent = L(it.name);
+    if (isReps(it)) li.classList.add("lift-row");
+    if (isReps(it)){
+      li.querySelector(".in-sets").oninput = e => { it.sets = Math.max(1, +e.target.value || 1); updateGauge(); };
+      li.querySelector(".in-reps").oninput = e => { it.reps = Math.max(1, +e.target.value || 1); updateGauge(); };
+      li.querySelector(".in-kg").oninput   = e => { it.weight = Math.max(0, +e.target.value || 0); updateGauge(); };
+    } else {
+      li.querySelector(".in-work").oninput = e => { it.work = Math.max(5, +e.target.value || 5); updateGauge(); };
+    }
     li.querySelector(".in-rest").oninput = e => { it.rest = Math.max(0, +e.target.value || 0); updateGauge(); };
     li.querySelector(".up").onclick = () => { if (i > 0){ [p.items[i-1], p.items[i]] = [p.items[i], p.items[i-1]]; renderBuild(); } };
     li.querySelector(".dn").onclick = () => { if (i < p.items.length-1){ [p.items[i+1], p.items[i]] = [p.items[i], p.items[i+1]]; renderBuild(); } };
@@ -550,10 +615,13 @@ function updateGauge(){
   const secs = planSeconds(p);
   const goal = p.target * 60;
   $("gaugeNow").textContent = mmss(secs);
+  const vol = p.items.reduce((a,i) => a + itemVolume(i), 0) * Math.max(1, +p.repeat || 1);
+  const volEl = $("gaugeVol");
+  if (volEl){ volEl.hidden = !vol; volEl.textContent = vol ? L("حجم الرفع {0} كجم", vol) : ""; }
   const g = $("gauge");
   if (!goal){
     $("gaugeFill").style.width = p.items.length ? "100%" : "0%";
-    $("gaugeNote").textContent = p.items.length ? `${planRounds(p)} جولة — بدون مدة مستهدفة` : "أضف تمارين للجدول";
+    $("gaugeNote").textContent = p.items.length ? L("{0} جولة — بدون مدة مستهدفة", planRounds(p)) : L("أضف تمارين للجدول");
     g.classList.remove("over");
     return;
   }
@@ -561,20 +629,20 @@ function updateGauge(){
   const diff = secs - goal;
   g.classList.toggle("over", diff > 0);
   $("gaugeNote").textContent =
-    !p.items.length ? "أضف تمارين للجدول" :
-    Math.abs(diff) <= 20 ? `مطابق للمدة المستهدفة (${p.target} دقيقة)` :
-    diff > 0 ? `أطول من المستهدف بـ ${mmss(diff)} دقيقة` :
-               `ناقص ${mmss(-diff)} دقيقة عن المستهدف`;
+    !p.items.length ? L("أضف تمارين للجدول") :
+    Math.abs(diff) <= 20 ? L("مطابق للمدة المستهدفة ({0} دقيقة)", p.target) :
+    diff > 0 ? L("أطول من المستهدف بـ {0} دقيقة", mmss(diff)) :
+               L("ناقص {0} دقيقة عن المستهدف", mmss(-diff));
 }
 
 async function saveBuilder(){
   const p = S.editing;
-  p.name = $("planName").value.trim() || "جدول بدون اسم";
+  p.name = $("planName").value.trim() || L("جدول بدون اسم");
   updateGauge();
-  if (!p.items.length){ toast("أضف تمريناً واحداً على الأقل"); return; }
+  if (!p.items.length){ toast(L("أضف تمريناً واحداً على الأقل")); return; }
   await savePlan(p);
   S.plans.sort((a,b) => (b.updatedAt||0) - (a.updatedAt||0));
-  toast("انحفظ الجدول");
+  toast(L("انحفظ الجدول"));
   show("plans");
 }
 
@@ -585,7 +653,7 @@ let ticker = null, wake = null;
 
 function startRun(plan){
   const segs = buildSegments(plan);
-  if (!segs.length){ toast("الجدول فاضي"); return; }
+  if (!segs.length){ toast(L("الجدول فاضي")); return; }
   S.run = {
     plan, segs, idx:0, elapsed:0, running:false, last:0, finished:false, beeped:-1,
     total: segs.reduce((a,s) => a + s.dur, 0),
@@ -624,21 +692,35 @@ function renderRun(){
   const r = S.run; if (!r) return;
   const seg = r.segs[Math.min(r.idx, r.segs.length-1)];
   const left = seg.dur - r.elapsed;
+  const lifting = !r.finished && seg.kind === "reps";
 
-  $("runClock").textContent = r.finished ? "تم" : mmss(left);
-  $("runPhase").textContent = r.finished ? "اكتمل التمرين" : seg.phase;
-  $("runMove").textContent  = r.finished ? r.plan.name : seg.name;
-  $("runTip").textContent   = r.finished ? "انحفظ في سجلك" : (r.running ? seg.tip : "متوقف");
+  $("runClock").textContent = r.finished ? L("تم") : lifting ? String(seg.reps) : mmss(left);
+  $("runPhase").textContent = r.finished ? L("اكتمل التمرين")
+    : lifting ? L("{0} · المجموعة {1} من {2}", seg.phase, seg.set, seg.sets) : seg.phase;
+  $("runMove").textContent  = r.finished ? L(r.plan.name) : seg.name;
+  $("runTip").textContent   = r.finished ? L("انحفظ في سجلك")
+    : lifting ? L("عدّة — اضغط «تم» بعد ما تخلّص المجموعة")
+    : (r.running ? seg.tip : L("متوقف"));
   const nx = r.segs[r.idx+1];
-  $("runNext").innerHTML = (!r.finished && nx) ? "بعده: <b>" + nx.name.replace(/</g,"&lt;") + "</b>" : "";
+  $("runNext").innerHTML = (!r.finished && nx) ? L("بعده: <b>") + nx.name.replace(/</g,"&lt;") + "</b>" : "";
+
+  /* شريط الوزن — يظهر فقط في تمارين الأوزان */
+  const lift = $("liftBox");
+  if (lift){
+    lift.hidden = !lifting;
+    if (lifting) $("liftKg").textContent = seg.weight ? String(seg.weight) : "—";
+  }
 
   document.body.classList.toggle("is-rest", !r.finished && seg.kind === "rest");
   document.body.classList.toggle("is-prep", !r.finished && seg.kind === "prep");
+  document.body.classList.toggle("is-lift", lifting);
 
-  const total = doneBefore(r.idx) + r.elapsed;
+  const total = doneBefore(r.idx) + Math.min(r.elapsed, seg.dur);
   const pct = Math.min(1, total / r.total);
-  $("runLeft").textContent = `الجولة ${currentRound()} من ${r.rounds}`;
-  $("runRight").textContent = `باقي ${mmss(r.total - total)} من ${mmss(r.total)}`;
+  $("runLeft").textContent = currentRound()
+    ? L("الجولة {0} من {1}", currentRound(), r.rounds)
+    : L("{0} جولة", r.rounds);
+  $("runRight").textContent = L("باقي {0} من {1}", mmss(r.total - total), mmss(r.total));
 
   // climb the ridge
   const path = $("climbPath"), done = $("climbDone"), dot = $("climbDot");
@@ -657,8 +739,10 @@ function renderRun(){
     el.classList.toggle("now", !r.finished && n === cr && seg.kind === "work");
   });
 
-  const label = r.finished ? "من جديد" : (r.running ? "إيقاف" : (total > 0 ? "أكمل" : "ابدأ"));
-  const icon  = r.running ? "i-pause" : "i-play";
+  const label = r.finished ? L("من جديد")
+    : (lifting && r.running) ? L("تم")
+    : (r.running ? L("إيقاف") : (total > 0 ? L("أكمل") : L("ابدأ")));
+  const icon  = (lifting && r.running) ? "i-check" : (r.running ? "i-pause" : "i-play");
   $("btnPrimary").innerHTML = `<svg class="ic"><use href="#${icon}"/></svg><span>${label}</span>`;
 }
 
@@ -684,7 +768,8 @@ let arVoice = null;
 function pickVoice(){
   if (!("speechSynthesis" in window)) return;
   const vs = speechSynthesis.getVoices() || [];
-  arVoice = vs.find(v => /^ar/i.test(v.lang)) || null;
+  const pre = lang() === "en" ? /^en/i : /^ar/i;
+  arVoice = vs.find(v => pre.test(v.lang)) || null;
 }
 if ("speechSynthesis" in window){
   pickVoice();
@@ -695,7 +780,7 @@ function speak(text){
   if (!("speechSynthesis" in window) || !text) return;
   try {
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = "ar-SA"; u.rate = 1.02;
+    u.lang = SPEECH(); u.rate = 1.02;
     if (arVoice) u.voice = arVoice;
     speechSynthesis.cancel();
     speechSynthesis.speak(u);
@@ -703,7 +788,9 @@ function speak(text){
 }
 function saySegment(seg, next){
   if (!seg) return;
-  if (seg.kind === "rest") speak(next ? `راحة، بعدها ${next.name}` : "راحة");
+  if (seg.kind === "rest") speak(next ? L("راحة، بعدها {0}", next.name) : L("راحة"));
+  else if (seg.kind === "reps")
+    speak(L("{0}، {1} عدة{2}", seg.name, seg.reps, seg.weight ? L("، {0} كيلو", seg.weight) : ""));
   else speak(seg.name);
 }
 
@@ -724,6 +811,9 @@ function tick(){
   const r = S.run; if (!r || !r.running) return;
   const now = Date.now();
   r.elapsed += (now - r.last) / 1000; r.last = now;
+
+  /* مجموعة أوزان: ما فيه عدّ تنازلي — تنتظر ضغطة «تم» */
+  if (r.segs[r.idx] && r.segs[r.idx].open){ renderRun(); return; }
 
   const whole = Math.ceil(r.segs[r.idx].dur - r.elapsed);
   if (whole <= 3 && whole > 0 && whole !== r.beeped){ r.beeped = whole; beep(760, 110, .18); }
@@ -746,20 +836,63 @@ function play(){
   if (!ticker) ticker = setInterval(tick, 120);
   renderRun();
 }
+/* ينتقل للمقطع التالي — يستخدمه زر «التالي» وزر «تم» في مجموعات الأوزان */
+function advance(){
+  const r = S.run; if (!r || r.finished) return;
+  if (r.segs[r.idx] && r.segs[r.idx].kind === "reps") r.setsDone = (r.setsDone || 0) + 1;
+  r.elapsed = 0; r.beeped = -1; r.idx++;
+  if (r.idx >= r.segs.length){ r.idx = r.segs.length - 1; finishRun(true); return; }
+  if (r.running){
+    beep(r.segs[r.idx].kind === "rest" ? 430 : 980, 240, .28);
+    saySegment(r.segs[r.idx], r.segs[r.idx + 1]);
+  }
+  renderRun();
+}
+
+/* تغيير وزن التمرين أثناء الجلسة — ينحفظ في الجدول */
+function bumpWeight(delta){
+  const r = S.run; if (!r) return;
+  const seg = r.segs[Math.min(r.idx, r.segs.length-1)];
+  if (!seg || seg.kind !== "reps") return;
+  const w = Math.max(0, Math.round(((+seg.weight||0) + delta) * 2) / 2);
+  if (seg.item) seg.item.weight = w;
+  for (let i = r.idx; i < r.segs.length; i++)
+    if (r.segs[i].kind === "reps" && r.segs[i].item === seg.item) r.segs[i].weight = w;
+  r.weightChanged = true;
+  renderRun();
+}
+
 function pause(){ if (S.run){ S.run.running = false; } keepAwake(false); renderRun(); }
 function stopTimer(){ if (ticker){ clearInterval(ticker); ticker = null; } keepAwake(false); }
+
+/* ملخّص الأوزان للمقاطع المنجزة */
+function liftSummary(uptoIdx){
+  const map = new Map();
+  S.run.segs.slice(0, uptoIdx).forEach(s => {
+    if (s.kind !== "reps") return;
+    const cur = map.get(s.name) || { name:s.name, sets:0, reps:s.reps, weight:0 };
+    cur.sets++; cur.reps = s.reps; cur.weight = Math.max(cur.weight, +s.weight||0);
+    map.set(s.name, cur);
+  });
+  const lifts = [...map.values()];
+  return { lifts, volume: Math.round(lifts.reduce((a,l) => a + l.sets*l.reps*l.weight, 0)) };
+}
 
 async function finishRun(complete){
   const r = S.run; if (!r) return;
   r.running = false; stopTimer();
   const rounds = complete ? r.rounds : currentRound();
   const secs = complete ? r.total : doneBefore(r.idx) + r.elapsed;
+  const { lifts, volume } = liftSummary(complete ? r.segs.length : r.idx);
+
+  if (r.weightChanged){ try { await savePlan(r.plan); } catch(e){} }
 
   if (rounds > 0){
     const sess = {
       id: uid(), at: Date.now(), planId: r.plan.id, planName: r.plan.name,
       rounds, total: r.rounds, secs: Math.round(secs), completed: !!complete
     };
+    if (volume > 0){ sess.volume = volume; sess.lifts = lifts; }
     await saveSession(sess);
     await refreshStreak();
     socialAfterWorkout(sess);
@@ -769,11 +902,12 @@ async function finishRun(complete){
     beep(880, 300, .3); setTimeout(() => beep(1180, 420, .3), 320);
     const st = streakInfo();
     renderRun();
-    toast(st.current > 1 ? `ممتاز — ${st.current} أيام متتالية` : "أحسنت، انحفظ التمرين");
+    toast(volume > 0 ? L("رفعت {0} كجم في هذا التمرين 💪", volume)
+        : st.current > 1 ? L("ممتاز — {0} أيام متتالية", st.current) : L("أحسنت، انحفظ التمرين"));
   } else {
     S.run = null;
     show("home");
-    if (rounds > 0) toast(`انحفظ ${rounds} من ${r.rounds} جولة`);
+    if (rounds > 0) toast(L("انحفظ {0} من {1} جولة", rounds, r.rounds));
   }
 }
 
@@ -783,25 +917,25 @@ function renderLog(){
   const ul = $("log"); ul.innerHTML = "";
   $("logEmpty").hidden = S.sessions.length > 0;
   ul.hidden = S.sessions.length === 0;
-  $("logCount").textContent = S.sessions.length ? `${S.sessions.length} تمرين` : "";
+  $("logCount").textContent = S.sessions.length ? L("{0} تمرين", S.sessions.length) : "";
 
   S.sessions.slice(0, logLimit).forEach(s => {
     const d = new Date(s.at);
-    const date = d.toLocaleDateString("ar-SA-u-nu-latn-ca-gregory", { weekday:"long", day:"numeric", month:"long" });
-    const time = d.toLocaleTimeString("ar-SA-u-nu-latn", { hour:"numeric", minute:"2-digit" });
+    const date = d.toLocaleDateString(LOC(), { weekday:"long", day:"numeric", month:"long" });
+    const time = d.toLocaleTimeString(LOC(), { hour:"numeric", minute:"2-digit" });
     const li = document.createElement("li");
     if (s.completed === false) li.className = "partial";
     li.innerHTML =
       `<span class="log-ic"><svg class="ic"><use href="#i-${s.completed === false ? "timer" : "check"}"/></svg></span>
-       <span class="log-main"><b></b><span>${date} · ${time} · ${s.rounds}/${s.total || s.rounds} جولة · ${mmss(s.secs)}</span></span>
-       <button class="log-del" aria-label="احذف هذا التمرين"><svg class="ic"><use href="#i-trash"/></svg></button>`;
-    li.querySelector("b").textContent = s.planName || "تمرين";
+       <span class="log-main"><b></b><span>${date} · ${time} · ${s.rounds}/${s.total || s.rounds} ${L("جولة")} · ${mmss(s.secs)}</span></span>
+       <button class="log-del" aria-label="${L("احذف هذا التمرين")}"><svg class="ic"><use href="#i-trash"/></svg></button>`;
+    li.querySelector("b").textContent = L(s.planName || "تمرين");
     li.querySelector(".log-del").onclick = async () => {
-      const ok = await ask("حذف التمرين", `${s.planName || "تمرين"} — ${date}. الحذف يؤثر على عدّاد الأيام المتتالية.`);
+      const ok = await ask(L("حذف التمرين"), L("{0} — {1}. الحذف يؤثر على عدّاد الأيام المتتالية.", L(s.planName || "تمرين"), date));
       if (!ok) return;
       await deleteSession(s.id);
       renderLog();
-      toast("انحذف التمرين من السجل");
+      toast(L("انحذف التمرين من السجل"));
     };
     ul.appendChild(li);
   });
@@ -822,48 +956,58 @@ $("btnNewPlan").onclick    = () => openBuilder(null);
 $("btnBuildCancel").onclick = () => show("plans");
 $("btnBuildSave").onclick   = saveBuilder;
 $("btnBuildDelete").onclick = async () => {
-  const ok = await ask("حذف الجدول", `${S.editing.name || "هذا الجدول"} — ما راح يظهر في قائمة الجداول.`);
+  const ok = await ask(L("حذف الجدول"), L("{0} — ما راح يظهر في قائمة الجداول.", S.editing.name || L("هذا الجدول")));
   if (!ok) return;
   await removePlan(S.editing.id);
-  toast("انحذف الجدول");
+  toast(L("انحذف الجدول"));
   show("plans");
 };
 ["planRepeat","planWarm","planCool","planTarget"].forEach(id => { $(id).onchange = updateGauge; });
 $("btnCustomAdd").onclick = () => {
   const v = $("customName").value.trim();
   if (!v) return;
-  S.editing.items.push({ key:"X", name:v, work:45, rest:15 });
+  S.editing.items.push(pickKind === "reps"
+    ? { key:"X", name:v, mode:"reps", sets:3, reps:10, weight:10, rest:60 }
+    : { key:"X", name:v, work:45, rest:15 });
   $("customName").value = "";
   renderBuild();
 };
 $("customName").addEventListener("keydown", e => { if (e.key === "Enter"){ e.preventDefault(); $("btnCustomAdd").click(); } });
 
-$("btnPrimary").onclick = () => { if (!S.run) return; S.run.running ? pause() : play(); };
-$("btnSkip").onclick = () => {
-  const r = S.run; if (!r || r.finished) return;
-  r.elapsed = 0; r.beeped = -1; r.idx++;
-  if (r.idx >= r.segs.length){ r.idx = r.segs.length - 1; finishRun(true); return; }
-  renderRun();
+$("btnPrimary").onclick = () => {
+  const r = S.run; if (!r) return;
+  const seg = r.segs[Math.min(r.idx, r.segs.length-1)];
+  if (!r.finished && r.running && seg && seg.open){ advance(); return; }   // «تم» للمجموعة
+  r.running ? pause() : play();
 };
+$("btnSkip").onclick = () => advance();
+$("liftMinus").onclick = () => bumpWeight(-2.5);
+$("liftPlus").onclick  = () => bumpWeight(+2.5);
+
+document.querySelectorAll("#pickTabs button").forEach(b => {
+  b.onclick = () => { pickKind = b.dataset.pt; renderPicker(); };
+});
 $("btnStop").onclick = async () => {
   if (!S.run) return;
   if (S.run.finished){ S.run = null; show("home"); return; }
-  const ok = await ask("إنهاء التمرين", "اللي أنجزته ينحفظ في السجل.", "أنهِ التمرين");
+  const ok = await ask(L("إنهاء التمرين"), L("اللي أنجزته ينحفظ في السجل."), L("أنهِ التمرين"));
   if (!ok) return;
   finishRun(false);
 };
 
 $("btnAccount").onclick = () => {
   $("sheetName").textContent = S.user.name;
-  $("sheetMail").textContent = S.user.email || "بدون بريد";
+  $("sheetMail").textContent = S.user.email || L("بدون بريد");
   const mid = memberId();
   $("sheetSync").textContent = S.mode === "cloud"
-    ? (mid ? `رقم عضويتك ${mid} — بياناتك تتزامن بين أجهزتك.`
-           : "بياناتك محفوظة في حسابك وتتزامن بين أجهزتك.")
-    : "وضع محلي — البيانات على هذا الجهاز فقط. سجّل بجوجل للمزامنة.";
-  $("btnSignOut").textContent = S.mode === "cloud" ? "تسجيل الخروج" : "رجوع لشاشة الدخول";
+    ? (mid ? L("رقم عضويتك {0} — بياناتك تتزامن بين أجهزتك.", mid)
+           : L("بياناتك محفوظة في حسابك وتتزامن بين أجهزتك."))
+    : L("وضع محلي — البيانات على هذا الجهاز فقط. سجّل بجوجل للمزامنة.");
+  $("btnSignOut").textContent = S.mode === "cloud" ? L("تسجيل الخروج") : L("رجوع لشاشة الدخول");
   $("sheet").hidden = false;
 };
+$("btnLang").textContent = lang() === "en" ? "العربية" : "English";
+$("btnLang").onclick = () => setLang(lang() === "en" ? "ar" : "en");
 $("btnCloseSheet").onclick = () => { $("sheet").hidden = true; };
 $("btnSignOut").onclick = signOutNow;
 $("sheet").addEventListener("click", e => { if (e.target.id === "sheet") $("sheet").hidden = true; });
@@ -881,7 +1025,7 @@ const OPTS = lsGet("hejaz.opts", { sound:true, voice:true });
   el.checked = OPTS[key] !== false;
   el.addEventListener("change", () => {
     OPTS[key] = el.checked; lsSet("hejaz.opts", OPTS);
-    if (key === "voice" && el.checked) speak("تمام");
+    if (key === "voice" && el.checked) speak(L("تمام"));
   });
 });
 

@@ -235,6 +235,49 @@ main{flex:1;padding:18px 18px 110px;max-width:560px;width:100%;margin:0 auto}
 .picker button:active{background:var(--panel-2)}
 .build-actions{display:flex;flex-direction:column;gap:12px;margin-top:8px}
 
+/* ---------------- تمارين بأوزان ---------------- */
+.pick-tabs{
+  display:flex;gap:6px;background:var(--panel-2);border:1.5px solid var(--rule);
+  border-radius:15px;padding:4px;margin:-2px 0 2px;
+}
+.pick-tabs button{
+  flex:1;border:0;background:transparent;color:var(--soft);font-family:inherit;
+  font-size:14.5px;font-weight:500;padding:10px 6px;border-radius:12px;cursor:pointer;
+}
+.pick-tabs button.on{background:var(--panel);color:var(--ink);font-weight:600;box-shadow:var(--shadow-s)}
+.gauge-vol{margin:5px 0 0;font-size:13.5px;color:var(--accent);font-weight:500}
+
+.build-list li.lift-row{flex-wrap:wrap}
+.lift-row .row-nums.reps{
+  flex:1 0 100%;order:4;justify-content:space-between;gap:6px;
+  border-top:1.5px dashed var(--rule);padding-top:10px;margin-top:3px;
+}
+.row-nums.reps label{flex:1}
+.row-nums.reps input{width:100%}
+
+.lift{display:flex;align-items:center;justify-content:center;gap:16px;margin-top:12px}
+.lift-b{
+  width:48px;height:48px;border-radius:16px;border:1.5px solid var(--rule);
+  background:var(--panel-2);color:var(--ink);font-size:25px;line-height:1;cursor:pointer;
+  display:grid;place-items:center;font-family:inherit;
+}
+.lift-b:active{background:var(--rule)}
+.lift-w{display:flex;align-items:baseline;gap:5px;min-width:100px;justify-content:center}
+.lift-w b{font-size:31px;font-weight:700;color:var(--accent)}
+.lift-w small{font-size:14px;color:var(--soft)}
+body.is-lift .run-clock{color:var(--accent);font-size:clamp(64px,22vw,96px)}
+
+.lifts{display:flex;flex-direction:column;gap:11px}
+.lift-item{display:flex;align-items:center;gap:11px}
+.lift-item .li-name{flex:1;min-width:0;font-size:15px;font-weight:500;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lift-item .li-track{flex:0 0 38%;height:10px;border-radius:99px;background:var(--panel-2);overflow:hidden}
+.lift-item .li-track i{display:block;height:100%;border-radius:99px;
+  background:linear-gradient(90deg,var(--gold),var(--rose))}
+.lift-item b{font-size:15px;font-weight:600;min-width:62px;text-align:end}
+.lift-item b small{font-size:11.5px;color:var(--soft);font-weight:400;margin-inline-start:3px}
+.lift-up{color:var(--good);font-size:12.5px;font-weight:600}
+
 /* ---------------- runner ---------------- */
 .run{gap:16px}
 .run-card{
@@ -646,3 +689,10 @@ body.is-prep .run-clock{color:var(--soft)}
 .duel-side span{font-size:12.5px;max-width:92px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .duel-vs{font-size:14px;font-weight:700;opacity:.75;letter-spacing:.06em}
 .duel-foot{margin:0;font-size:14px;font-weight:600}
+
+/* ---------------- الواجهة الإنجليزية (LTR) ---------------- */
+[dir="ltr"] .climb{transform:none}
+[dir="ltr"] .gr-go{transform:none}
+[dir="ltr"] #btnBuildCancel .ic{transform:scaleX(-1)}
+[dir="ltr"] body,[dir="ltr"] .run-clock{letter-spacing:normal}
+[dir="ltr"] .run-clock{letter-spacing:-.04em}

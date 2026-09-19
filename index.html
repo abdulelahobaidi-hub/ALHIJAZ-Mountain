@@ -193,7 +193,7 @@
             <span>الإحماء</span>
             <select id="planWarm">
               <option value="0">بدون</option>
-              <option value="60">دقيقة</option>
+              <option value="60">دقيقة واحدة</option>
               <option value="120">دقيقتان</option>
               <option value="180" selected>٣ دقائق</option>
             </select>
@@ -202,7 +202,7 @@
             <span>التهدئة</span>
             <select id="planCool">
               <option value="0">بدون</option>
-              <option value="60">دقيقة</option>
+              <option value="60">دقيقة واحدة</option>
               <option value="120" selected>دقيقتان</option>
               <option value="180">٣ دقائق</option>
             </select>
@@ -214,6 +214,7 @@
         <div class="gauge-row"><span>مدة الجدول</span><b id="gaugeNow">0:00</b></div>
         <div class="gauge-bar"><i id="gaugeFill"></i></div>
         <p class="gauge-note" id="gaugeNote">أضف تمارين للجدول</p>
+        <p class="gauge-vol" id="gaugeVol" hidden></p>
       </div>
 
       <h3 class="sub-head">التمارين <small id="itemCount"></small></h3>
@@ -221,6 +222,10 @@
       <p class="empty" id="buildEmpty">الجدول فاضي. اختر تمريناً من الأسفل.</p>
 
       <h3 class="sub-head">أضف تمريناً</h3>
+      <div class="pick-tabs" id="pickTabs">
+        <button data-pt="time" class="on">بالوقت</button>
+        <button data-pt="reps">بالأوزان</button>
+      </div>
       <div class="picker" id="picker"></div>
 
       <label class="field" style="margin-top:14px">
@@ -262,6 +267,13 @@
         <p class="run-phase" id="runPhase">جاهز</p>
         <h2 class="run-move" id="runMove">—</h2>
         <p class="run-clock" id="runClock">0:00</p>
+
+        <div class="lift" id="liftBox" hidden>
+          <button class="lift-b" id="liftMinus" aria-label="أنقص الوزن">−</button>
+          <span class="lift-w"><b id="liftKg">0</b><small>كجم</small></span>
+          <button class="lift-b" id="liftPlus" aria-label="زد الوزن">+</button>
+        </div>
+
         <p class="run-tip" id="runTip">اضغط ابدأ</p>
         <p class="run-next" id="runNext"></p>
       </div>
@@ -368,6 +380,7 @@
     <p class="sheet-name" id="sheetName">—</p>
     <p class="sheet-mail" id="sheetMail">—</p>
     <p class="sheet-sync" id="sheetSync">—</p>
+    <button class="btn btn-soft" id="btnLang">English</button>
     <button class="btn btn-soft" id="btnCloseSheet">إغلاق</button>
     <button class="btn btn-danger" id="btnSignOut">تسجيل الخروج</button>
   </div>

@@ -84,6 +84,35 @@ service cloud.firestore {
         return ('admins' in resource.data) ? resource.data.admins : [resource.data.ownerUid];
       }
       function isAdmin() { return signedIn() && me() in admins(); }
+      function newData() { return request.resource.data; }
+      function smallPhoto() {
+        return !('photo' in newData()) || newData().photo.size() < 60000;
+      }
+      function onlyMembersChanged() {
+        return newData().diff(resource.data).affectedKeys().hasOnly(['memberUids']);
+      }
+      // المشرف يعدّل الاسم والصورة والتحدي والأعضاء والمشرفين — ويبقى المؤسس مشرفاً دائماً
+      function adminEdit() {
+        return isAdmin()
+               && newData().ownerUid == resource.data.ownerUid
+               && resource.data.ownerUid in newData().admins
+               && smallPhoto();
+      }
+      // العضو العادي: يغادر القروب فقط
+      function memberLeaves() {
+        return isMember()
+               && onlyMembersChanged()
+               && !(me() in newData().memberUids)
+               && resource.data.memberUids.hasAll(newData().memberUids);
+      }
+      // غير العضو: ينضم بالكود — يضيف نفسه فقط ولا يغيّر شيئاً آخر
+      function joinsByCode() {
+        return signedIn()
+               && onlyMembersChanged()
+               && me() in newData().memberUids
+               && newData().memberUids.hasAll(resource.data.memberUids)
+               && newData().memberUids.size() == resource.data.memberUids.size() + 1;
+      }
 
       allow read: if isMember();
 
@@ -92,22 +121,7 @@ service cloud.firestore {
                     && request.resource.data.memberUids == [me()]
                     && request.resource.data.admins == [me()];
 
-      // المشرف يعدّل الاسم والصورة والتحدي والأعضاء والمشرفين — ويبقى المؤسس مشرفاً دائماً
-      allow update: if (isAdmin()
-          && request.resource.data.ownerUid == resource.data.ownerUid
-          && resource.data.ownerUid in request.resource.data.admins
-          && (!('photo' in request.resource.data) || request.resource.data.photo.size() < 60000))
-        // العضو العادي: يغادر القروب فقط
-        || (isMember()
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberUids'])
-            && !(me() in request.resource.data.memberUids)
-            && resource.data.memberUids.hasAll(request.resource.data.memberUids))
-        // غير العضو: ينضم بالكود — يضيف نفسه فقط ولا يغيّر شيئاً آخر
-        || (signedIn()
-            && me() in request.resource.data.memberUids
-            && request.resource.data.memberUids.hasAll(resource.data.memberUids)
-            && request.resource.data.memberUids.size() == resource.data.memberUids.size() + 1
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberUids']));
+      allow update: if adminEdit() || memberLeaves() || joinsByCode();
 
       allow delete: if signedIn() && resource.data.ownerUid == me();
 

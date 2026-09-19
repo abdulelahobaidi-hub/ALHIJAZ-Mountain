@@ -9,6 +9,8 @@
    groupCodes/{CODE}           بحث عن القروب بكود الدعوة
    ============================================================ */
 
+import { L, LOC, lang } from "./i18n.js";
+
 let C = null;                 // context handed over by app.js
 let P = null;                 // my public profile
 let friends = [];
@@ -36,18 +38,18 @@ const weekKey = (d = Date.now()) => C.dayKey(weekStart(d));
 
 function since(ms){
   const s = Math.max(0, (Date.now() - ms) / 1000);
-  if (s < 60) return "الحين";
-  if (s < 3600) return `قبل ${Math.floor(s/60)} دقيقة`;
-  if (s < 86400) return `قبل ${Math.floor(s/3600)} ساعة`;
-  if (s < 604800) return `قبل ${Math.floor(s/86400)} يوم`;
-  return new Date(ms).toLocaleDateString("ar-SA-u-nu-latn-ca-gregory", { day:"numeric", month:"short" });
+  if (s < 60) return L("الحين");
+  if (s < 3600) return L("قبل {0} دقيقة", Math.floor(s/60));
+  if (s < 86400) return L("قبل {0} ساعة", Math.floor(s/3600));
+  if (s < 604800) return L("قبل {0} يوم", Math.floor(s/86400));
+  return new Date(ms).toLocaleDateString(LOC(), { day:"numeric", month:"short" });
 }
 
 function avatar(p, size = 46){
   const st = `width:${size}px;height:${size}px`;
   return p && p.photo
     ? `<span class="av" style="${st};background-image:url('${esc(p.photo)}')"></span>`
-    : `<span class="av" style="${st}">${esc(((p && p.name) || "؟").trim().charAt(0))}</span>`;
+    : `<span class="av" style="${st}">${esc(((p && p.name) || L("؟")).trim().charAt(0))}</span>`;
 }
 
 /* ---------- my stats ---------- */
@@ -160,14 +162,14 @@ let requests = [];          // الطلبات الواردة لي
 
 async function sendRequest(raw){
   const id = String(raw || "").replace(/\D/g, "");
-  if (id.length !== 6){ C.toast("رقم العضوية ٦ أرقام"); return; }
+  if (id.length !== 6){ C.toast(L("رقم العضوية ٦ أرقام")); return; }
   const { db, m } = fb(), uid = myUid();
   try {
     const snap = await m.getDoc(m.doc(db, "memberIds", id));
-    if (!snap.exists()){ C.toast("ما فيه عضو بهذا الرقم"); return; }
+    if (!snap.exists()){ C.toast(L("ما فيه عضو بهذا الرقم")); return; }
     const other = snap.data().uid;
-    if (other === uid){ C.toast("هذا رقمك أنت"); return; }
-    if (friends.some(f => f.uid === other)){ C.toast("هو أصلاً في قائمة أصدقائك"); return; }
+    if (other === uid){ C.toast(L("هذا رقمك أنت")); return; }
+    if (friends.some(f => f.uid === other)){ C.toast(L("هو أصلاً في قائمة أصدقائك")); return; }
 
     // لو هو أرسل لي طلب من قبل — نقبله مباشرة بدل ما نرسل طلباً مضاداً
     const incoming = requests.find(r => r.from === other);
@@ -178,8 +180,8 @@ async function sendRequest(raw){
       fromName: C.S.user.name, fromPhoto: C.S.user.photo || "",
       fromMemberId: P ? P.memberId : "", at: Date.now()
     });
-    C.toast("انرسل الطلب — ينتظر قبوله");
-  } catch(err){ console.error(err); C.toast("تعذّر إرسال الطلب"); }
+    C.toast(L("انرسل الطلب — ينتظر قبوله"));
+  } catch(err){ console.error(err); C.toast(L("تعذّر إرسال الطلب")); }
 }
 
 async function loadRequests(){
@@ -199,8 +201,8 @@ async function acceptRequest(req){
                    { a: uid, b: req.from, at: Date.now() });
     await m.deleteDoc(m.doc(db, "friendRequests", req.id));
     await loadRequests(); await loadFriends(); renderClub();
-    C.toast(`صرتوا أصدقاء — ${req.fromName || ""}`.trim());
-  } catch(err){ console.error(err); C.toast("تعذّر القبول"); }
+    C.toast(L("صرتوا أصدقاء — {0}", req.fromName || "").trim());
+  } catch(err){ console.error(err); C.toast(L("تعذّر القبول")); }
 }
 
 async function rejectRequest(req){
@@ -208,18 +210,18 @@ async function rejectRequest(req){
   try {
     await m.deleteDoc(m.doc(db, "friendRequests", req.id));
     await loadRequests(); renderClub();
-    C.toast("انرفض الطلب");
-  } catch(err){ console.error(err); C.toast("تعذّر الرفض"); }
+    C.toast(L("انرفض الطلب"));
+  } catch(err){ console.error(err); C.toast(L("تعذّر الرفض")); }
 }
 
 async function removeFriend(other, name){
-  const ok = await C.ask("حذف صديق", `${name} راح ينحذف من قائمتك.`);
+  const ok = await C.ask(L("حذف صديق"), L("{0} راح ينحذف من قائمتك.", name));
   if (!ok) return;
   const { db, m } = fb();
   try {
     await m.deleteDoc(m.doc(db, "friendships", pairId(myUid(), other)));
-    await loadFriends(); renderClub(); C.toast("انحذف");
-  } catch(err){ console.error(err); C.toast("تعذّر الحذف"); }
+    await loadFriends(); renderClub(); C.toast(L("انحذف"));
+  } catch(err){ console.error(err); C.toast(L("تعذّر الحذف")); }
 }
 
 /* ============================================================
@@ -237,7 +239,7 @@ async function loadGroups(){
 
 async function createGroup(name){
   name = String(name || "").trim();
-  if (!name){ C.toast("اكتب اسم القروب"); return; }
+  if (!name){ C.toast(L("اكتب اسم القروب")); return; }
   const { db, m } = fb(), uid = myUid();
   try {
     let code = null;
@@ -253,33 +255,33 @@ async function createGroup(name){
     });
     await m.setDoc(m.doc(db, "groupCodes", code), { gid: ref.id, at: Date.now() });
     await loadGroups(); renderClub();
-    C.toast(`انشأ القروب — كود الدعوة ${code}`);
-  } catch(err){ console.error(err); C.toast("تعذّر إنشاء القروب — تأكد من قواعد Firestore"); }
+    C.toast(L("انشأ القروب — كود الدعوة {0}", code));
+  } catch(err){ console.error(err); C.toast(L("تعذّر إنشاء القروب — تأكد من قواعد Firestore")); }
 }
 
 async function joinByCode(raw){
   const code = String(raw || "").trim().toUpperCase();
-  if (code.length !== 6){ C.toast("الكود ٦ خانات"); return; }
+  if (code.length !== 6){ C.toast(L("الكود ٦ خانات")); return; }
   const { db, m } = fb(), uid = myUid();
   try {
     const snap = await m.getDoc(m.doc(db, "groupCodes", code));
-    if (!snap.exists()){ C.toast("كود غير صحيح"); return; }
+    if (!snap.exists()){ C.toast(L("كود غير صحيح")); return; }
     const gid = snap.data().gid;
     await m.updateDoc(m.doc(db, "groups", gid), { memberUids: m.arrayUnion(uid) });
     await loadGroups(); renderClub();
-    C.toast("انضممت للقروب");
-  } catch(err){ console.error(err); C.toast("تعذّر الانضمام"); }
+    C.toast(L("انضممت للقروب"));
+  } catch(err){ console.error(err); C.toast(L("تعذّر الانضمام")); }
 }
 
 async function leaveGroup(g){
-  const ok = await C.ask("مغادرة القروب", `${g.name} — تقدر ترجع بنفس الكود.`, "غادر");
+  const ok = await C.ask(L("مغادرة القروب"), L("{0} — تقدر ترجع بنفس الكود.", g.name), L("غادر"));
   if (!ok) return;
   const { db, m } = fb();
   try {
     await m.updateDoc(m.doc(db, "groups", g.id), { memberUids: m.arrayRemove(myUid()) });
     closeChat(); curGroup = null;
-    await loadGroups(); C.show("club"); C.toast("غادرت القروب");
-  } catch(err){ console.error(err); C.toast("تعذّرت المغادرة"); }
+    await loadGroups(); C.show("club"); C.toast(L("غادرت القروب"));
+  } catch(err){ console.error(err); C.toast(L("تعذّرت المغادرة")); }
 }
 
 /* ---------- الإشراف على القروب ---------- */
@@ -355,9 +357,9 @@ async function startDuel(f){
     await m.setDoc(m.doc(db, "duels", id), doc);
     duels[f.uid] = { id, ...doc };
     await pushDuelScores();
-    C.toast("بدأ التحدي — أسبوع من الحين");
+    C.toast(L("بدأ التحدي — أسبوع من الحين"));
     openFriendProfile(f);
-  } catch(err){ console.error(err); C.toast("تعذّر بدء التحدي"); }
+  } catch(err){ console.error(err); C.toast(L("تعذّر بدء التحدي")); }
 }
 
 /* نكتب نتيجتنا نحن فقط في كل تحدٍّ نشط */
@@ -379,20 +381,20 @@ export async function pushDuelScores(){
 function duelHTML(f){
   const d = duels[f.uid];
   if (!d) return `<button class="btn btn-soft" id="duelStart">
-      <svg class="ic"><use href="#i-trophy"/></svg><span>تحدَّه أسبوعاً</span></button>`;
+      <svg class="ic"><use href="#i-trophy"/></svg><span>${L("تحدَّه أسبوعاً")}</span></button>`;
 
   const mine = d.a === myUid() ? d.scoreA : d.scoreB;
   const his  = d.a === myUid() ? d.scoreB : d.scoreA;
   const over = Date.now() > d.endAt;
   const left = Math.max(0, Math.ceil((d.endAt - Date.now()) / 86400000));
   const verdict = over
-    ? (mine === his ? "تعادل" : mine > his ? "فزت 🎉" : `فاز ${esc(f.name)}`)
-    : `باقي ${left} ${left === 1 ? "يوم" : "أيام"}`;
+    ? (mine === his ? L("تعادل") : mine > his ? L("فزت 🎉") : L("فاز {0}", esc(f.name)))
+    : L("باقي {0} {1}", left, left === 1 ? L("يوم") : L("أيام"));
   return `
     <div class="duel${over ? " over" : ""}">
-      <p class="duel-top">تحدي الأسبوع</p>
+      <p class="duel-top">${L("تحدي الأسبوع")}</p>
       <div class="duel-row">
-        <span class="duel-side${mine >= his ? " lead" : ""}"><b>${mine}</b><span>أنت</span></span>
+        <span class="duel-side${mine >= his ? " lead" : ""}"><b>${mine}</b><span>${L("أنت")}</span></span>
         <span class="duel-vs">VS</span>
         <span class="duel-side${his >= mine ? " lead" : ""}"><b>${his}</b><span>${esc(f.name)}</span></span>
       </div>
@@ -409,7 +411,7 @@ export async function socialAfterWorkout(sess){
   await pushDuelScores();
   if (!groups.length) await loadGroups();
   const { db, m } = fb();
-  const text = `خلّص ${sess.planName || "تمرين"} — ${sess.rounds} جولة`;
+  const text = L("خلّص {0} — {1} جولة", sess.planName || L("تمرين"), sess.rounds);
   for (const g of groups){
     try {
       await m.addDoc(m.collection(db, "groups", g.id, "messages"),
@@ -425,13 +427,13 @@ export function renderClub(){
   const me = $("meCard");
   if (!isCloud()){
     me.innerHTML = `<div class="me-lock">
-        <p><b>القروبات تحتاج حساب</b></p>
-        <p class="muted">سجّل دخولك بجوجل عشان يكون لك رقم عضوية وتقدر تضيف أصدقاء وتنشئ قروبات.</p>
+        <p><b>${L("القروبات تحتاج حساب")}</b></p>
+        <p class="muted">${L("سجّل دخولك بجوجل عشان يكون لك رقم عضوية وتقدر تضيف أصدقاء وتنشئ قروبات.")}</p>
       </div>`;
     $("friendList").innerHTML = ""; $("groupList").innerHTML = "";
     $("friendEmpty").hidden = false; $("groupEmpty").hidden = false;
-    $("friendEmpty").textContent = "سجّل دخولك عشان تضيف أصدقاء.";
-    $("groupEmpty").textContent  = "سجّل دخولك عشان تنشئ قروب.";
+    $("friendEmpty").textContent = L("سجّل دخولك عشان تضيف أصدقاء.");
+    $("groupEmpty").textContent  = L("سجّل دخولك عشان تنشئ قروب.");
     return;
   }
 
@@ -441,38 +443,38 @@ export function renderClub(){
       ${avatar(P, 58)}
       <div class="me-id">
         <b>${esc(P ? P.name : C.S.user.name)}</b>
-        <span>رقم عضويتك</span>
+        <span>${L("رقم عضويتك")}</span>
         <p class="member-id">${esc(P ? P.memberId : "—")}</p>
       </div>
-      <button class="btn btn-soft btn-sq sm" id="btnCopyId" aria-label="انسخ الرقم">
+      <button class="btn btn-soft btn-sq sm" id="btnCopyId" aria-label="${L("انسخ الرقم")}">
         <svg class="ic"><use href="#i-copy"/></svg>
       </button>
     </div>
     <div class="me-stats">
-      <span><b>${s.streak}</b>أيام متتالية</span>
-      <span><b>${s.week}</b>هذا الأسبوع</span>
-      <span><b>${s.total}</b>تمرين</span>
+      <span><b>${s.streak}</b>${L("أيام متتالية")}</span>
+      <span><b>${s.week}</b>${L("هذا الأسبوع")}</span>
+      <span><b>${s.total}</b>${L("تمرين")}</span>
     </div>`;
   $("btnCopyId").onclick = async () => {
-    try { await navigator.clipboard.writeText(P.memberId); C.toast("انتسخ الرقم"); }
-    catch(e){ C.toast("رقمك: " + P.memberId); }
+    try { await navigator.clipboard.writeText(P.memberId); C.toast(L("انتسخ الرقم")); }
+    catch(e){ C.toast(L("رقمك: ") + P.memberId); }
   };
 
   /* friend requests */
   const rw = $("reqWrap"), rl = $("reqList");
   rw.hidden = requests.length === 0;
-  $("reqCount").textContent = requests.length ? `${requests.length} جديد` : "";
+  $("reqCount").textContent = requests.length ? L("{0} جديد", requests.length) : "";
   rl.innerHTML = "";
   requests.forEach(r => {
     const li = document.createElement("li");
     li.innerHTML = `
       ${avatar({ name: r.fromName, photo: r.fromPhoto })}
-      <span class="fr-main"><b>${esc(r.fromName || "عضو")}</b>
-        <span>رقم العضوية ${esc(r.fromMemberId || "—")} · ${since(r.at)}</span>
+      <span class="fr-main"><b>${esc(r.fromName || L("عضو"))}</b>
+        <span>${L("رقم العضوية")} ${esc(r.fromMemberId || "—")} · ${since(r.at)}</span>
       </span>
       <span class="req-btns">
-        <button class="req-yes" aria-label="قبول"><svg class="ic"><use href="#i-check"/></svg></button>
-        <button class="req-no" aria-label="رفض">✕</button>
+        <button class="req-yes" aria-label="${L("قبول")}"><svg class="ic"><use href="#i-check"/></svg></button>
+        <button class="req-no" aria-label="${L("رفض")}">✕</button>
       </span>`;
     li.querySelector(".req-yes").onclick = () => acceptRequest(r);
     li.querySelector(".req-no").onclick  = () => rejectRequest(r);
@@ -482,15 +484,15 @@ export function renderClub(){
   /* friends */
   const fl = $("friendList"); fl.innerHTML = "";
   $("friendEmpty").hidden = friends.length > 0;
-  $("friendEmpty").textContent = "ما عندك أصدقاء بعد. أضف صديق برقم عضويته.";
+  $("friendEmpty").textContent = L("ما عندك أصدقاء بعد. أضف صديق برقم عضويته.");
   friends.forEach(f => {
     const li = document.createElement("li");
     li.innerHTML = `
       ${avatar(f)}
       <span class="fr-main"><b><span class="nm">${esc(f.name)}</span>${flame(f.streak)}</b>
-        <span>${f.week||0} تمرين هذا الأسبوع${f.lastAt ? " · " + since(f.lastAt) : ""}</span>
+        <span>${f.week||0} ${L("تمرين هذا الأسبوع")}${f.lastAt ? " · " + since(f.lastAt) : ""}</span>
       </span>
-      <button class="fr-chat" aria-label="محادثة"><svg class="ic"><use href="#i-send"/></svg></button>`;
+      <button class="fr-chat" aria-label="${L("محادثة")}"><svg class="ic"><use href="#i-send"/></svg></button>`;
     li.querySelector(".fr-chat").onclick = e => { e.stopPropagation(); openDM(f); };
     li.onclick = () => openFriendProfile(f);
     fl.appendChild(li);
@@ -499,13 +501,13 @@ export function renderClub(){
   /* groups */
   const gl = $("groupList"); gl.innerHTML = "";
   $("groupEmpty").hidden = groups.length > 0;
-  $("groupEmpty").textContent = "ما أنت في أي قروب. أنشئ قروب أو انضم بكود من صديق.";
+  $("groupEmpty").textContent = L("ما أنت في أي قروب. أنشئ قروب أو انضم بكود من صديق.");
   groups.forEach(g => {
     const li = document.createElement("li");
     li.innerHTML = `
       ${groupAvatar(g, 48)}
       <span class="gr-main"><b>${esc(g.name)}</b>
-        <span>${(g.memberUids||[]).length} أعضاء · كود ${esc(g.code)}</span>
+        <span>${(g.memberUids||[]).length} ${L("أعضاء")} · ${L("كود")} ${esc(g.code)}</span>
       </span>
       <svg class="ic gr-go"><use href="#i-back"/></svg>`;
     li.onclick = () => openGroup(g);
@@ -536,19 +538,19 @@ function renderGroupHead(){
   const admin = isAdminOf(g);
   $("gHead").innerHTML = `
     <div class="ghead-row">
-      <button class="ghead-back" id="gBack" aria-label="رجوع"><svg class="ic"><use href="#i-back"/></svg></button>
-      <button class="gav-btn" id="gPhoto" ${admin ? "" : "disabled"} aria-label="صورة القروب">
+      <button class="ghead-back" id="gBack" aria-label="${L("رجوع")}"><svg class="ic"><use href="#i-back"/></svg></button>
+      <button class="gav-btn" id="gPhoto" ${admin ? "" : "disabled"} aria-label="${L("صورة القروب")}">
         ${groupAvatar(g, 46)}${admin ? `<i class="gav-edit"><svg class="ic"><use href="#i-edit"/></svg></i>` : ""}
       </button>
       <div class="ghead-main">
         <b id="gName">${esc(g.name)}${admin ? ` <svg class="ic gname-edit"><use href="#i-edit"/></svg>` : ""}</b>
-        <span>${(g.memberUids||[]).length} أعضاء${admin ? " · أنت مشرف" : ""}</span>
+        <span>${(g.memberUids||[]).length} ${L("أعضاء")}${admin ? L(" · أنت مشرف") : ""}</span>
       </div>
-      <button class="ghead-exit" id="gLeave" aria-label="مغادرة القروب"><svg class="ic"><use href="#i-exit"/></svg></button>
+      <button class="ghead-exit" id="gLeave" aria-label="${L("مغادرة القروب")}"><svg class="ic"><use href="#i-exit"/></svg></button>
     </div>
     <button class="ghead-code" id="gCode">
       <svg class="ic"><use href="#i-share"/></svg>
-      <span>شارك كود الدعوة</span>
+      <span>${L("شارك كود الدعوة")}</span>
       <b>${esc(g.code)}</b>
     </button>`;
   $("gBack").onclick = () => { closeChat(); C.show("club"); };
@@ -556,14 +558,14 @@ function renderGroupHead(){
 
   if (admin){
     $("gName").onclick = async () => {
-      const v = await promptSheet("اسم القروب", "اكتب الاسم الجديد", g.name);
+      const v = await promptSheet(L("اسم القروب"), L("اكتب الاسم الجديد"), g.name);
       const name = (v || "").trim();
       if (!name || name === g.name) return;
       const { db, m } = fb();
       try {
         await m.updateDoc(m.doc(db, "groups", g.id), { name });
-        g.name = name; renderGroupHead(); await loadGroups(); C.toast("انحفظ الاسم");
-      } catch(err){ console.error(err); C.toast("تعذّر التعديل"); }
+        g.name = name; renderGroupHead(); await loadGroups(); C.toast(L("انحفظ الاسم"));
+      } catch(err){ console.error(err); C.toast(L("تعذّر التعديل")); }
     };
     $("gPhoto").onclick = async () => {
       const dataUrl = await pickGroupPhoto();
@@ -571,15 +573,15 @@ function renderGroupHead(){
       const { db, m } = fb();
       try {
         await m.updateDoc(m.doc(db, "groups", g.id), { photo: dataUrl });
-        g.photo = dataUrl; renderGroupHead(); await loadGroups(); C.toast("انحفظت الصورة");
-      } catch(err){ console.error(err); C.toast("تعذّر حفظ الصورة"); }
+        g.photo = dataUrl; renderGroupHead(); await loadGroups(); C.toast(L("انحفظت الصورة"));
+      } catch(err){ console.error(err); C.toast(L("تعذّر حفظ الصورة")); }
     };
   }
   $("gCode").onclick = async () => {
-    const txt = `انضم لقروب «${g.name}» في نادي جبال الحجاز\nالكود: ${g.code}\n${location.origin}${location.pathname}`;
+    const txt = `${L("انضم لقروب «")}${g.name}» ${L("في نادي جبال الحجاز")}\n${L("الكود:")} ${g.code}\n${location.origin}${location.pathname}`;
     try {
       if (navigator.share) await navigator.share({ text: txt });
-      else { await navigator.clipboard.writeText(txt); C.toast("انتسخت الدعوة"); }
+      else { await navigator.clipboard.writeText(txt); C.toast(L("انتسخت الدعوة")); }
     } catch(e){ /* المستخدم ألغى المشاركة */ }
   };
   document.querySelectorAll("#gTabs button").forEach(b => {
@@ -601,23 +603,23 @@ function setTab(t){
 /* ---------- الترتيب ---------- */
 async function tabBoard(){
   const body = $("gBody");
-  body.innerHTML = `<p class="loading">جارٍ التحميل…</p>`;
+  body.innerHTML = `<p class="loading">${L("جارٍ التحميل…")}</p>`;
   const profs = await loadProfiles(curGroup.memberUids || []);
   boardCache = profs;
   const rows = Object.values(profs).sort((a,b) =>
     (b.streak||0) - (a.streak||0) || (b.week||0) - (a.week||0) || (b.total||0) - (a.total||0));
-  if (!rows.length){ body.innerHTML = `<p class="empty">ما فيه أعضاء بعد.</p>`; return; }
+  if (!rows.length){ body.innerHTML = `<p class="empty">${L("ما فيه أعضاء بعد.")}</p>`; return; }
   const medal = ["gold","silver","bronze"];
   body.innerHTML = `<ul class="board">` + rows.map((p, i) => `
     <li class="${p.uid === myUid() ? "me" : ""}">
       <span class="rank ${i < 3 ? medal[i] : ""}">${i + 1}</span>
       ${avatar(p, 44)}
-      <span class="bd-main"><b><span class="nm">${esc(p.name)}${p.uid === myUid() ? " (أنت)" : ""}</span>${
-        groupAdmins(curGroup).includes(p.uid) ? `<i class="adm">مشرف</i>` : ""}</b>
-        <span>${p.week||0} تمرين هذا الأسبوع${p.lastAt ? " · آخر تمرين " + since(p.lastAt) : ""}</span>
+      <span class="bd-main"><b><span class="nm">${esc(p.name)}${p.uid === myUid() ? L(" (أنت)") : ""}</span>${
+        groupAdmins(curGroup).includes(p.uid) ? `<i class="adm">${L("مشرف")}</i>` : ""}</b>
+        <span>${p.week||0} ${L("تمرين هذا الأسبوع")}${p.lastAt ? L(" · آخر تمرين ") + since(p.lastAt) : ""}</span>
       </span>
       ${flame(p.streak, true)}
-      ${p.uid === myUid() ? "" : `<button class="bd-more" data-uid="${esc(p.uid)}" aria-label="خيارات">⋯</button>`}
+      ${p.uid === myUid() ? "" : `<button class="bd-more" data-uid="${esc(p.uid)}" aria-label="${L("خيارات")}">⋯</button>`}
     </li>`).join("") + `</ul>`;
 
   body.querySelectorAll(".bd-more").forEach(b => {
@@ -637,10 +639,10 @@ async function tabChallenge(){
 
   body.innerHTML = `
     <div class="chal">
-      <p class="chal-eyebrow">تحدي هذا الأسبوع</p>
-      <p class="chal-target"><b>${ch.target}</b> تمارين لكل عضو</p>
-      <p class="chal-sub">${doneCount} من ${rows.length} خلّصوا التحدي</p>
-      ${g.ownerUid === myUid() ? `<button class="btn btn-soft" id="chalEdit">غيّر الهدف</button>` : ""}
+      <p class="chal-eyebrow">${L("تحدي هذا الأسبوع")}</p>
+      <p class="chal-target"><b>${ch.target}</b> ${L("تمارين لكل عضو")}</p>
+      <p class="chal-sub">${doneCount} ${L("من")} ${rows.length} ${L("خلّصوا التحدي")}</p>
+      ${g.ownerUid === myUid() ? `<button class="btn btn-soft" id="chalEdit">${L("غيّر الهدف")}</button>` : ""}
     </div>
     <ul class="chal-list">` + rows.map(p => {
       const w = p.weekKey === wk ? (p.week||0) : 0;
@@ -656,15 +658,15 @@ async function tabChallenge(){
 
   if (g.ownerUid === myUid()){
     $("chalEdit").onclick = async () => {
-      const v = await promptSheet("هدف التحدي", "كم تمرين لكل عضو في الأسبوع؟", String(ch.target));
+      const v = await promptSheet(L("هدف التحدي"), L("كم تمرين لكل عضو في الأسبوع؟"), String(ch.target));
       const n = parseInt(v, 10);
-      if (!n || n < 1 || n > 30){ if (v !== null) C.toast("رقم بين ١ و ٣٠"); return; }
+      if (!n || n < 1 || n > 30){ if (v !== null) C.toast(L("رقم بين ١ و ٣٠")); return; }
       const { db, m } = fb();
       try {
         await m.updateDoc(m.doc(db, "groups", g.id), { challenge: { target: n, weekKey: weekKey() } });
         g.challenge = { target: n, weekKey: weekKey() };
-        tabChallenge(); C.toast("انحفظ الهدف");
-      } catch(err){ console.error(err); C.toast("تعذّر الحفظ"); }
+        tabChallenge(); C.toast(L("انحفظ الهدف"));
+      } catch(err){ console.error(err); C.toast(L("تعذّر الحفظ")); }
     };
   }
 }
@@ -675,10 +677,10 @@ function closeChat(){ if (unsubChat){ unsubChat(); unsubChat = null; } }
 function tabChat(){
   const body = $("gBody"), g = curGroup, { db, m } = fb();
   body.innerHTML = `
-    <div class="chat" id="chatBox"><p class="loading">جارٍ التحميل…</p></div>
+    <div class="chat" id="chatBox"><p class="loading">${L("جارٍ التحميل…")}</p></div>
     <div class="chat-bar">
-      <input type="text" id="chatInput" placeholder="اكتب رسالة…" autocomplete="off">
-      <button class="btn btn-primary btn-sq" id="chatSend" aria-label="إرسال"><svg class="ic"><use href="#i-send"/></svg></button>
+      <input type="text" id="chatInput" placeholder="${L("اكتب رسالة…")}" autocomplete="off">
+      <button class="btn btn-primary btn-sq" id="chatSend" aria-label="${L("إرسال")}"><svg class="ic"><use href="#i-send"/></svg></button>
     </div>`;
 
   const send = async () => {
@@ -688,7 +690,7 @@ function tabChat(){
     try {
       await m.addDoc(m.collection(db, "groups", g.id, "messages"),
         { uid: myUid(), name: C.S.user.name, text, at: Date.now(), kind: "msg", claps: [] });
-    } catch(err){ console.error(err); C.toast("ما انرسلت الرسالة"); el.value = text; }
+    } catch(err){ console.error(err); C.toast(L("ما انرسلت الرسالة")); el.value = text; }
   };
   $("chatSend").onclick = send;
   $("chatInput").addEventListener("keydown", e => { if (e.key === "Enter"){ e.preventDefault(); send(); } });
@@ -697,7 +699,7 @@ function tabChat(){
   unsubChat = m.onSnapshot(q, snap => {
     const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() })).reverse();
     const box = $("chatBox"); if (!box) return;
-    if (!msgs.length){ box.innerHTML = `<p class="empty">ابدأ المحادثة — أول رسالة عليك.</p>`; return; }
+    if (!msgs.length){ box.innerHTML = `<p class="empty">${L("ابدأ المحادثة — أول رسالة عليك.")}</p>`; return; }
     box.innerHTML = msgs.map(msg => {
       const mine = msg.uid === myUid();
       const claps = (msg.claps || []).length;
@@ -723,14 +725,14 @@ function tabChat(){
     box.scrollTop = box.scrollHeight;
   }, err => {
     console.error("chat", err);
-    const box = $("chatBox"); if (box) box.innerHTML = `<p class="empty">تعذّر تحميل المحادثة — تأكد من نشر قواعد Firestore.</p>`;
+    const box = $("chatBox"); if (box) box.innerHTML = `<p class="empty">${L("تعذّر تحميل المحادثة — تأكد من نشر قواعد")} Firestore.</p>`;
   });
 }
 
 /* ---------- الجداول المشتركة ---------- */
 async function tabPlans(){
   const body = $("gBody"), g = curGroup, { db, m } = fb();
-  body.innerHTML = `<p class="loading">جارٍ التحميل…</p>`;
+  body.innerHTML = `<p class="loading">${L("جارٍ التحميل…")}</p>`;
   let list = [];
   try {
     const q = m.query(m.collection(db, "groups", g.id, "plans"), m.orderBy("at", "desc"), m.limit(30));
@@ -738,20 +740,20 @@ async function tabPlans(){
   } catch(err){ console.error(err); }
 
   body.innerHTML =
-    `<button class="btn btn-soft" id="pubPlan"><svg class="ic"><use href="#i-share"/></svg><span>انشر جدولاً للقروب</span></button>` +
+    `<button class="btn btn-soft" id="pubPlan"><svg class="ic"><use href="#i-share"/></svg><span>${L("انشر جدولاً للقروب")}</span></button>` +
     (list.length
       ? `<ul class="shared">` + list.map(p => `
           <li>
             <span class="sh-main"><b>${esc(p.name)}</b>
-              <span>من ${esc(p.byName)} · ${p.rounds} جولة · ${p.mins} دقيقة</span>
+              <span>${L("من")} ${esc(p.byName)} · ${p.rounds} ${L("جولة")} · ${p.mins} ${L("دقيقة")}</span>
             </span>
-            <button class="btn btn-soft btn-pill" data-copy="${p.id}">انسخه لي</button>
+            <button class="btn btn-soft btn-pill" data-copy="${p.id}">${L("انسخه لي")}</button>
           </li>`).join("") + `</ul>`
-      : `<p class="empty">ما فيه جداول منشورة بعد.</p>`);
+      : `<p class="empty">${L("ما فيه جداول منشورة بعد.")}</p>`);
 
   $("pubPlan").onclick = async () => {
     const names = C.S.plans.map(p => p.name);
-    const i = await chooser("انشر جدولاً", names);
+    const i = await chooser(L("انشر جدولاً"), names);
     if (i < 0) return;
     const plan = C.S.plans[i];
     try {
@@ -761,18 +763,18 @@ async function tabPlans(){
         rounds: C.planRounds(plan), mins: Math.round(C.planSeconds(plan)/60),
         byUid: myUid(), byName: C.S.user.name, at: Date.now()
       });
-      tabPlans(); C.toast("انتشر الجدول للقروب");
-    } catch(err){ console.error(err); C.toast("تعذّر النشر"); }
+      tabPlans(); C.toast(L("انتشر الجدول للقروب"));
+    } catch(err){ console.error(err); C.toast(L("تعذّر النشر")); }
   };
 
   body.querySelectorAll("[data-copy]").forEach(b => {
     b.onclick = async () => {
       const p = list.find(x => x.id === b.dataset.copy);
       await C.addPlanCopy({
-        name: p.name + " (من " + p.byName + ")",
+        name: p.name + L(" (من ") + p.byName + ")",
         items: p.items, repeat: p.repeat, warm: p.warm, cool: p.cool, target: p.target
       });
-      C.toast("انضاف لجداولك");
+      C.toast(L("انضاف لجداولك"));
     };
   });
 }
@@ -786,12 +788,12 @@ async function memberSheet(p){
   const pAdmin = groupAdmins(g).includes(p.uid);
 
   const acts = [];
-  if (isFriend) acts.push({ t:"افتح ملفه", run: () => openFriendProfile(p) });
-  else acts.push({ t:"أرسل طلب صداقة", run: () => sendRequestToUid(p) });
+  if (isFriend) acts.push({ t:L("افتح ملفه"), run: () => openFriendProfile(p) });
+  else acts.push({ t:L("أرسل طلب صداقة"), run: () => sendRequestToUid(p) });
   if (admin && p.uid !== g.ownerUid){
-    acts.push(pAdmin ? { t:"أزل الإشراف", run: () => setAdmin(p, false) }
-                     : { t:"اجعله مشرفاً", run: () => setAdmin(p, true) });
-    acts.push({ t:"أزله من القروب", run: () => kickMember(p) });
+    acts.push(pAdmin ? { t:L("أزل الإشراف"), run: () => setAdmin(p, false) }
+                     : { t:L("اجعله مشرفاً"), run: () => setAdmin(p, true) });
+    acts.push({ t:L("أزله من القروب"), run: () => kickMember(p) });
   }
 
   const i = await chooser(p.name, acts.map(a => a.t));
@@ -808,8 +810,8 @@ async function sendRequestToUid(p){
       from: uid, to: p.uid, fromName: C.S.user.name, fromPhoto: C.S.user.photo || "",
       fromMemberId: P ? P.memberId : "", at: Date.now()
     });
-    C.toast(`انرسل طلب صداقة لـ ${p.name}`);
-  } catch(err){ console.error(err); C.toast("تعذّر إرسال الطلب"); }
+    C.toast(L("انرسل طلب صداقة لـ {0}", p.name));
+  } catch(err){ console.error(err); C.toast(L("تعذّر إرسال الطلب")); }
 }
 
 async function setAdmin(p, on){
@@ -821,13 +823,13 @@ async function setAdmin(p, on){
     on ? list.add(p.uid) : list.delete(p.uid);
     g.admins = [...list];
     renderGroupHead(); tabBoard();
-    C.toast(on ? `${p.name} صار مشرفاً` : `انسحب الإشراف من ${p.name}`);
-  } catch(err){ console.error(err); C.toast("تعذّر التعديل"); }
+    C.toast(on ? L("{0} صار مشرفاً", p.name) : L("انسحب الإشراف من {0}", p.name));
+  } catch(err){ console.error(err); C.toast(L("تعذّر التعديل")); }
 }
 
 async function kickMember(p){
   const g = curGroup;
-  const ok = await C.ask("إزالة عضو", `${p.name} راح ينحذف من ${g.name}. يقدر يرجع بالكود.`, "أزله");
+  const ok = await C.ask(L("إزالة عضو"), L("{0} راح ينحذف من {1}. يقدر يرجع بالكود.", p.name, g.name), L("أزله"));
   if (!ok) return;
   const { db, m } = fb();
   try {
@@ -838,8 +840,8 @@ async function kickMember(p){
     g.memberUids = (g.memberUids||[]).filter(u => u !== p.uid);
     g.admins = groupAdmins(g).filter(u => u !== p.uid);
     renderGroupHead(); tabBoard();
-    C.toast(`انحذف ${p.name} من القروب`);
-  } catch(err){ console.error(err); C.toast("تعذّرت الإزالة"); }
+    C.toast(L("انحذف {0} من القروب", p.name));
+  } catch(err){ console.error(err); C.toast(L("تعذّرت الإزالة")); }
 }
 
 /* ============================================================
@@ -848,7 +850,7 @@ async function kickMember(p){
 function weekStrip(days, frozen){
   const set = new Set(days || []);
   const fz  = new Set(frozen || []);
-  const names = ["ح","ن","ث","ر","خ","ج","س"];
+  const names = [L("ح"),L("ن"),L("ث"),L("ر"),L("خ"),L("ج"),L("س")];
   let h = "";
   for (let i = 6; i >= 0; i--){
     const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - i);
@@ -861,7 +863,7 @@ function weekStrip(days, frozen){
 async function openFriendProfile(f){
   C.show("friend");
   const body = $("frBody");
-  body.innerHTML = `<p class="loading">جارٍ التحميل…</p>`;
+  body.innerHTML = `<p class="loading">${L("جارٍ التحميل…")}</p>`;
 
   // نجيب أحدث نسخة من ملفه
   const fresh = (await loadProfiles([f.uid]))[f.uid] || f;
@@ -876,40 +878,40 @@ async function openFriendProfile(f){
   body.innerHTML = `
     <div class="ghead">
       <div class="ghead-row">
-        <button class="ghead-back" id="frBack" aria-label="رجوع"><svg class="ic"><use href="#i-back"/></svg></button>
-        <div class="ghead-main"><b>ملف الصديق</b><span>رقم العضوية ${esc(fresh.memberId || "—")}</span></div>
-        <button class="ghead-exit" id="frDel" aria-label="حذف من الأصدقاء"><svg class="ic"><use href="#i-trash"/></svg></button>
+        <button class="ghead-back" id="frBack" aria-label="${L("رجوع")}"><svg class="ic"><use href="#i-back"/></svg></button>
+        <div class="ghead-main"><b>${L("ملف الصديق")}</b><span>${L("رقم العضوية")} ${esc(fresh.memberId || "—")}</span></div>
+        <button class="ghead-exit" id="frDel" aria-label="${L("حذف من الأصدقاء")}"><svg class="ic"><use href="#i-trash"/></svg></button>
       </div>
     </div>
 
     <div class="fprof">
       ${avatar(fresh, 76)}
       <h2>${esc(fresh.name)} ${flame(fresh.streak, true)}</h2>
-      <p>${fresh.lastAt ? "آخر تمرين " + since(fresh.lastAt) : "ما سجّل تمارين بعد"}${
-        fresh.badges ? ` · 🏅 ${fresh.badges} شارة` : ""}</p>
+      <p>${fresh.lastAt ? L("آخر تمرين ") + since(fresh.lastAt) : L("ما سجّل تمارين بعد")}${
+        fresh.badges ? ` ${L("· 🏅 {0} شارة", fresh.badges)}` : ""}</p>
       ${weekStrip(fresh.days, fresh.frozen)}
     </div>
 
     <div class="stats">
       <div class="stat"><span class="stat-ic s-rose"><svg class="ic"><use href="#i-check"/></svg></span>
-        <strong>${fresh.total||0}</strong><small>تمرين</small></div>
+        <strong>${fresh.total||0}</strong><small>${L("تمرين")}</small></div>
       <div class="stat"><span class="stat-ic s-gold"><svg class="ic"><use href="#i-trophy"/></svg></span>
-        <strong>${fresh.best||0}</strong><small>أطول سلسلة</small></div>
+        <strong>${fresh.best||0}</strong><small>${L("أطول سلسلة")}</small></div>
       <div class="stat"><span class="stat-ic s-plum"><svg class="ic"><use href="#i-timer"/></svg></span>
-        <strong>${fresh.week||0}</strong><small>هذا الأسبوع</small></div>
+        <strong>${fresh.week||0}</strong><small>${L("هذا الأسبوع")}</small></div>
     </div>
 
     ${duelHTML(fresh)}
 
-    <button class="btn btn-primary btn-lg" id="frChat"><svg class="ic"><use href="#i-send"/></svg><span>محادثة</span></button>
+    <button class="btn btn-primary btn-lg" id="frChat"><svg class="ic"><use href="#i-send"/></svg><span>${L("محادثة")}</span></button>
 
-    <h3 class="sub-head">جداوله</h3>
+    <h3 class="sub-head">${L("جداوله")}</h3>
     ${plans.length ? `<ul class="shared">` + plans.map(p => `
       <li>
-        <span class="sh-main"><b>${esc(p.name)}</b><span>${p.rounds||0} جولة · ${p.mins||0} دقيقة</span></span>
-        <button class="btn btn-soft btn-pill" data-fp="${esc(p.id)}">انسخه لي</button>
+        <span class="sh-main"><b>${esc(p.name)}</b><span>${p.rounds||0} ${L("جولة")} · ${p.mins||0} ${L("دقيقة")}</span></span>
+        <button class="btn btn-soft btn-pill" data-fp="${esc(p.id)}">${L("انسخه لي")}</button>
       </li>`).join("") + `</ul>`
-      : `<p class="empty">ما نشر جداول بعد.</p>`}`;
+      : `<p class="empty">${L("ما نشر جداول بعد.")}</p>`}`;
 
   $("frBack").onclick = () => C.show("club");
   const ds = $("duelStart");
@@ -919,9 +921,9 @@ async function openFriendProfile(f){
   body.querySelectorAll("[data-fp]").forEach(b => {
     b.onclick = async () => {
       const p = plans.find(x => x.id === b.dataset.fp);
-      await C.addPlanCopy({ name: `${p.name} (من ${fresh.name})`, items: p.items,
+      await C.addPlanCopy({ name: L("{0} (من {1})", p.name, fresh.name), items: p.items,
                             repeat: p.repeat, warm: p.warm, cool: p.cool, target: p.target });
-      C.toast("انضاف لجداولك");
+      C.toast(L("انضاف لجداولك"));
     };
   });
 }
@@ -936,8 +938,8 @@ function closeDM(){ if (unsubDM){ unsubDM(); unsubDM = null; } }
 function planCardHTML(p, mid, mine){
   return `<div class="plan-msg${mine ? " mine" : ""}">
       <span class="pm-ic"><svg class="ic"><use href="#i-list"/></svg></span>
-      <span class="pm-main"><b>${esc(p.name)}</b><span>${p.rounds||0} جولة · ${p.mins||0} دقيقة</span></span>
-      <button class="btn btn-soft btn-pill" data-pm="${mid}">انسخه لي</button>
+      <span class="pm-main"><b>${esc(p.name)}</b><span>${p.rounds||0} ${L("جولة")} · ${p.mins||0} ${L("دقيقة")}</span></span>
+      <button class="btn btn-soft btn-pill" data-pm="${mid}">${L("انسخه لي")}</button>
     </div>`;
 }
 
@@ -950,11 +952,11 @@ function openDM(f){
 
   $("dmHead").innerHTML = `
     <div class="ghead-row">
-      <button class="ghead-back" id="dmBack" aria-label="رجوع"><svg class="ic"><use href="#i-back"/></svg></button>
+      <button class="ghead-back" id="dmBack" aria-label="${L("رجوع")}"><svg class="ic"><use href="#i-back"/></svg></button>
       ${avatar(f, 42)}
       <div class="ghead-main"><b><span class="nm">${esc(f.name)}</span>${flame(f.streak)}</b>
-        <span>${f.lastAt ? "آخر تمرين " + since(f.lastAt) : "—"}</span></div>
-      <button class="ghead-prof" id="dmProf" aria-label="ملفه"><svg class="ic"><use href="#i-user"/></svg></button>
+        <span>${f.lastAt ? L("آخر تمرين ") + since(f.lastAt) : "—"}</span></div>
+      <button class="ghead-prof" id="dmProf" aria-label="${L("ملفه")}"><svg class="ic"><use href="#i-user"/></svg></button>
     </div>`;
   $("dmBack").onclick = () => { closeDM(); C.show("club"); };
   $("dmProf").onclick = () => { closeDM(); openFriendProfile(f); };
@@ -970,25 +972,25 @@ function openDM(f){
       await m.addDoc(m.collection(db, "dms", pair, "messages"),
         { uid: myUid(), name: C.S.user.name, text, at: Date.now(), kind: extra ? "plan" : "msg",
           ...(extra ? { plan: extra } : {}) });
-    } catch(err){ console.error(err); C.toast("ما انرسلت الرسالة"); if (!extra) el.value = text; }
+    } catch(err){ console.error(err); C.toast(L("ما انرسلت الرسالة")); if (!extra) el.value = text; }
   };
   $("dmSend").onclick = () => send(null);
   $("dmInput").onkeydown = e => { if (e.key === "Enter"){ e.preventDefault(); send(null); } };
   $("dmPlan").onclick = async () => {
-    const i = await chooser("شارك جدولاً", C.S.plans.map(p => p.name));
+    const i = await chooser(L("شارك جدولاً"), C.S.plans.map(p => p.name));
     if (i < 0) return;
     const p = C.S.plans[i];
     await send({ name: p.name, items: p.items, repeat: p.repeat || 1, warm: p.warm || 0,
                  cool: p.cool || 0, target: p.target || 0,
                  rounds: C.planRounds(p), mins: Math.round(C.planSeconds(p)/60) });
-    C.toast("انرسل الجدول");
+    C.toast(L("انرسل الجدول"));
   };
 
   const q = m.query(m.collection(db, "dms", pair, "messages"), m.orderBy("at", "desc"), m.limit(60));
   unsubDM = m.onSnapshot(q, snap => {
     const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() })).reverse();
     const box = $("dmBox"); if (!box) return;
-    if (!msgs.length){ box.innerHTML = `<p class="empty">ابدأ المحادثة مع ${esc(f.name)}.</p>`; return; }
+    if (!msgs.length){ box.innerHTML = `<p class="empty">${L("ابدأ المحادثة مع")} ${esc(f.name)}.</p>`; return; }
     box.innerHTML = msgs.map(msg => {
       const mine = msg.uid === myUid();
       if (msg.kind === "plan" && msg.plan) return planCardHTML(msg.plan, msg.id, mine);
@@ -997,15 +999,15 @@ function openDM(f){
     box.querySelectorAll("[data-pm]").forEach(b => {
       b.onclick = async () => {
         const msg = msgs.find(x => x.id === b.dataset.pm);
-        await C.addPlanCopy({ name: `${msg.plan.name} (من ${msg.name})`, items: msg.plan.items,
+        await C.addPlanCopy({ name: L("{0} (من {1})", msg.plan.name, msg.name), items: msg.plan.items,
           repeat: msg.plan.repeat, warm: msg.plan.warm, cool: msg.plan.cool, target: msg.plan.target });
-        C.toast("انضاف لجداولك");
+        C.toast(L("انضاف لجداولك"));
       };
     });
     box.scrollTop = box.scrollHeight;
   }, err => {
     console.error("dm", err);
-    const box = $("dmBox"); if (box) box.innerHTML = `<p class="empty">تعذّر تحميل المحادثة — تأكد من نشر قواعد Firestore.</p>`;
+    const box = $("dmBox"); if (box) box.innerHTML = `<p class="empty">${L("تعذّر تحميل المحادثة — تأكد من نشر قواعد")} Firestore.</p>`;
   });
 }
 
@@ -1063,7 +1065,7 @@ function chooser(title, items){
     wrap.innerHTML = `<div class="sheet">
         <p class="sheet-name">${esc(title)}</p>
         ${items.map((t,i) => `<button class="btn btn-soft" data-i="${i}">${esc(t)}</button>`).join("")}
-        <button class="btn btn-ghost" data-i="-1">إلغاء</button>
+        <button class="btn btn-ghost" data-i="-1">${L("إلغاء")}</button>
       </div>`;
     document.body.appendChild(wrap);
     wrap.querySelectorAll("button").forEach(b => {
@@ -1079,18 +1081,18 @@ function chooser(title, items){
 export function initSocial(ctx){
   C = ctx;
   $("btnAddFriend").onclick = async () => {
-    if (!isCloud()){ C.toast("سجّل دخولك أولاً"); return; }
-    const v = await promptSheet("أضف صديق", "اكتب رقم عضوية صديقك (٦ أرقام) — يوصله طلب يقبله أو يرفضه", "");
+    if (!isCloud()){ C.toast(L("سجّل دخولك أولاً")); return; }
+    const v = await promptSheet(L("أضف صديق"), L("اكتب رقم عضوية صديقك (٦ أرقام) — يوصله طلب يقبله أو يرفضه"), "");
     if (v !== null) sendRequest(v);
   };
   $("btnNewGroup").onclick = async () => {
-    if (!isCloud()){ C.toast("سجّل دخولك أولاً"); return; }
-    const v = await promptSheet("قروب جديد", "وش اسم القروب؟", "");
+    if (!isCloud()){ C.toast(L("سجّل دخولك أولاً")); return; }
+    const v = await promptSheet(L("قروب جديد"), L("وش اسم القروب؟"), "");
     if (v !== null) createGroup(v);
   };
   $("btnJoinGroup").onclick = async () => {
-    if (!isCloud()){ C.toast("سجّل دخولك أولاً"); return; }
-    const v = await promptSheet("انضم لقروب", "اكتب كود الدعوة (٦ خانات)", "");
+    if (!isCloud()){ C.toast(L("سجّل دخولك أولاً")); return; }
+    const v = await promptSheet(L("انضم لقروب"), L("اكتب كود الدعوة (٦ خانات)"), "");
     if (v !== null) joinByCode(v);
   };
   $("prompt").addEventListener("click", e => { if (e.target.id === "prompt") $("pmNo").click(); });
