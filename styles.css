@@ -356,7 +356,7 @@ body.is-prep .run-clock{color:var(--soft)}
 .fr-main,.gr-main,.bd-main,.sh-main,.cl-main{flex:1;min-width:0}
 .fr-main b,.gr-main b,.bd-main b,.sh-main b,.cl-main b{
   display:block;font-size:16.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.fr-main span,.gr-main span,.bd-main span,.sh-main span{
+.fr-main>span,.gr-main>span,.bd-main>span,.sh-main>span{
   display:block;font-size:12.5px;color:var(--soft);margin-top:2px}
 .fr-del{width:44px;height:44px;border-radius:15px;flex:0 0 auto;display:grid;place-items:center;
   border:1.5px solid #F6D6CF;background:#FFF4F1;color:var(--bad);cursor:pointer}
@@ -519,3 +519,10 @@ body.is-prep .run-clock{color:var(--soft)}
 .fr-main b .nm,.ghead-main b .nm,.bd-main b .nm{
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .flame{flex:0 0 auto}
+
+/* تباعد داخل الحاويات التي تُبنى ديناميكياً */
+#frBody{display:flex;flex-direction:column;gap:18px}
+#gBody{display:flex;flex-direction:column;gap:14px}
+#reqWrap{display:flex;flex-direction:column;gap:12px}
+#frBody .sub-head,#gBody .sub-head{margin-top:2px}
+.chal{margin-bottom:0}
