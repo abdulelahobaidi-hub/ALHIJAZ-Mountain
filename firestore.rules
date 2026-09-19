@@ -92,9 +92,8 @@ service cloud.firestore {
                     && request.resource.data.memberUids == [me()]
                     && request.resource.data.admins == [me()];
 
-      allow update:
-        // المشرف يعدّل الاسم والصورة والتحدي والأعضاء والمشرفين — ويبقى المؤسس مشرفاً دائماً
-        (isAdmin()
+      // المشرف يعدّل الاسم والصورة والتحدي والأعضاء والمشرفين — ويبقى المؤسس مشرفاً دائماً
+      allow update: if (isAdmin()
           && request.resource.data.ownerUid == resource.data.ownerUid
           && resource.data.ownerUid in request.resource.data.admins
           && (!('photo' in request.resource.data) || request.resource.data.photo.size() < 60000))
