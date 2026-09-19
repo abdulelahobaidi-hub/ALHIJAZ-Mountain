@@ -1,37 +1,40 @@
 /* ============================================================
    نادي الجبال — عامل الخدمة الخاص بالإشعارات
-   يستقبل تذكير التمرين والتطبيق مقفل
+   بدون أي مكتبات خارجية: يقرأ رسالة الدفع مباشرة ويعرضها
    ============================================================ */
-importScripts("https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js");
-importScripts("https://www.gstatic.com/firebasejs/10.12.5/firebase-messaging-compat.js");
-importScripts("./firebase-config.js");
+const ICON = "./icon-192.png";
+const HOME = "https://www.mountains-fit.online/";
 
-try {
-  firebase.initializeApp(firebaseConfig);
-  const messaging = firebase.messaging();
+self.addEventListener("install", () => self.skipWaiting());
+self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 
-  messaging.onBackgroundMessage(payload => {
-    const d = payload.data || {};
-    const title = d.title || "نادي الجبال";
-    self.registration.showNotification(title, {
-      body: d.body || "",
-      icon: "./icon-192.png",
-      badge: "./icon-192.png",
-      tag: "hejaz-daily",
-      renotify: true,
-      dir: d.dir === "ltr" ? "ltr" : "rtl",
-      lang: d.lang || "ar",
-      data: { url: d.url || "./" }
-    });
-  });
-} catch (e) {
-  /* بدون إعدادات صحيحة نكتفي بعدم التسجيل */
-}
+self.addEventListener("push", event => {
+  let raw = {};
+  try { raw = event.data ? event.data.json() : {}; }
+  catch (e) {
+    try { raw = { data: { body: event.data ? event.data.text() : "" } }; } catch (_) { raw = {}; }
+  }
+  const d = raw.data || {};
+  const n = raw.notification || {};
+  const title = d.title || n.title || "نادي الجبال";
+  const body  = d.body  || n.body  || "";
+
+  event.waitUntil(self.registration.showNotification(title, {
+    body,
+    icon: n.icon || ICON,
+    badge: n.badge || ICON,
+    tag: d.tag || n.tag || "hejaz-daily",
+    renotify: true,
+    dir: d.dir === "ltr" ? "ltr" : "rtl",
+    lang: d.lang || "ar",
+    data: { url: d.url || (raw.fcmOptions && raw.fcmOptions.link) || HOME }
+  }));
+});
 
 /* فتح التطبيق عند الضغط على الإشعار */
 self.addEventListener("notificationclick", event => {
   event.notification.close();
-  const url = (event.notification.data && event.notification.data.url) || "./";
+  const url = (event.notification.data && event.notification.data.url) || HOME;
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(list => {
       for (const c of list){
