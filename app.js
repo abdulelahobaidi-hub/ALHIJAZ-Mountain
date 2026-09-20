@@ -1408,7 +1408,7 @@ const OPTS = lsGet("hejaz.opts", { sound:true, voice:true });
    ▸ غيّر السطر التالي فقط: ضع رابط الدفع من ميسر بين علامتي التنصيص.
    ▸ ما دام فارغاً، القسم كله لا يظهر في التطبيق إطلاقاً.
    ============================================================ */
-const SUPPORT_URL = "https://example.com";
+const SUPPORT_URL = "";
 
 (function supportCard(){
   if (!/^https:\/\/\S+$/i.test(SUPPORT_URL)) return;
@@ -1433,7 +1433,7 @@ const SUPPORT_URL = "https://example.com";
     note :"Payments via Moyasar — mada, Apple Pay and credit cards"
   } : {
     title:"ادعم نادي الجبال",
-    text :"التطبيق مجاني ويبقى مجانياً. لو أعجبك وحبيت تساهم في استمراره، هذا الباب مفتوح.",
+    text :"التطبيق مجاني ويبقى مجانياً. لو حبيت تساهم في استمراره، الباب مفتوح.",
     btn  :"ادعم التطبيق",
     note :"الدفع عبر ميسر — مدى، آبل باي، والبطاقات الائتمانية"
   };

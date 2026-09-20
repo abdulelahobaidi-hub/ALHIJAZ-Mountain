@@ -55,8 +55,8 @@ const EN = {
   "نادي الجبال": "Mountains Club",
   "نادي الجبال — مؤقت تمارين وجداول رياضية ومتابعة الاستمرارية":
     "Mountains Club — interval timer, workout plans and streak tracking",
-  "كل تمرين خطوة في الطريق. سجّل دخولك وابدأ الصعود.":
-    "Every workout is a step on the path. Sign in and start climbing.",
+  "من يتهيب صعود الجبال يعش أبد الدهر بين الحفر":
+    "He who dreads climbing the mountains lives forever among the hollows.",
   "تسجيل الدخول بحساب جوجل": "Sign in with Google",
   "أكمل بدون حساب على هذا الجهاز": "Continue without an account on this device",
 
