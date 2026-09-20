@@ -821,8 +821,9 @@ body.is-prep .run-clock{color:var(--soft)}
 /* ---------------- شرح التمرين بالصور ---------------- */
 .ht-img{
   width:100%;border-radius:var(--r-md);border:1.5px solid var(--rule);
-  background:var(--panel-2);margin-bottom:4px;
+  background:var(--panel-2);margin-bottom:4px;padding:10px 8px;
 }
+.ht-img svg{display:block;width:100%;height:auto}
 .pk-info{
   width:22px;height:22px;flex:0 0 auto;border-radius:50%;
   background:var(--panel-2);border:1.5px solid var(--rule);color:var(--soft);

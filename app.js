@@ -11,6 +11,7 @@ import { initProgress, renderProgress, badgeCount } from "./progress.js";
 import { L, LOC, SPEECH, lang, setLang, translateStatic } from "./i18n.js";
 import { shareCard } from "./share.js";
 import { initPush, renderPush, wirePush } from "./push.js";
+import { SHOTS } from "./ex.js";
 
 translateStatic();
 
@@ -1254,16 +1255,15 @@ document.querySelectorAll(".tabbar button").forEach(b => {
 
 $("btnQuickStart").onclick = () => { const p = todaySlot().plan; if (p) startRun(p); };
 
-/* ---------------- شرح التمرين بالصور ----------------
-   الصور في مجلد ex/ باسم مفتاح التمرين. التمارين المخصّصة بلا صور. */
-const SHOTS = new Set([...LIB, ...WLIB].map(e => e.key));
-const hasShot = k => SHOTS.has(k);
+/* ---------------- شرح التمرين بالرسومات ----------------
+   الرسومات في ex.js كنص SVG باسم مفتاح التمرين، وألوانها من متغيّرات
+   التطبيق فتتبع الوضع الليلي. التمارين المخصّصة بلا رسمة. */
+const hasShot = k => !!SHOTS[k];
 
 function showHowto(key, name, tip){
   if (!hasShot(key)) return;
   const e = [...LIB, ...WLIB].find(x => x.key === key);
-  $("htImg").src = `ex/${key}.webp`;
-  $("htImg").alt = name || (e && e.name) || "";
+  $("htImg").innerHTML = SHOTS[key];
   $("htName").textContent = name || (e && e.name) || L("تمرين");
   $("htTip").textContent  = tip  || (e && e.tip)  || "";
   $("howto").hidden = false;
