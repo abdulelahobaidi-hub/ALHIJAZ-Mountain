@@ -1402,3 +1402,54 @@ const OPTS = lsGet("hejaz.opts", { sound:true, voice:true });
   watchAuth();
   if (lsGet(LK.mode, "") === "local") await goGuest();
 })();
+
+/* ============================================================
+   دعم التطبيق — رابط تبرّع اختياري داخل صفحة الحساب
+   ▸ غيّر السطر التالي فقط: ضع رابط الدفع من ميسر بين علامتي التنصيص.
+   ▸ ما دام فارغاً، القسم كله لا يظهر في التطبيق إطلاقاً.
+   ============================================================ */
+const SUPPORT_URL = "";
+
+(function supportCard(){
+  if (!/^https:\/\/\S+$/i.test(SUPPORT_URL)) return;
+  const sheetBox = document.querySelector("#sheet .sheet");
+  const anchor   = document.getElementById("btnLang");
+  if (!sheetBox || !anchor) return;
+
+  /* أيقونة القلب تُضاف لمجموعة الأيقونات */
+  const sprite = document.querySelector("svg symbol")?.parentNode;
+  if (sprite && !document.getElementById("i-heart")){
+    const sym = document.createElementNS("http://www.w3.org/2000/svg", "symbol");
+    sym.id = "i-heart";
+    sym.setAttribute("viewBox", "0 0 24 24");
+    sym.innerHTML = '<path d="M12 20.4C8.3 17.9 4 14.4 4 10.6A4.1 4.1 0 0 1 12 8.6a4.1 4.1 0 0 1 8 2c0 3.8-4.3 7.3-8 9.8Z"/>';
+    sprite.appendChild(sym);
+  }
+
+  const t = lang() === "en" ? {
+    title:"Support Mountains Club",
+    text :"The app is free and will stay free. If you like it and want to help keep it going, the door is open.",
+    btn  :"Support the app",
+    note :"Payments via Moyasar — mada, Apple Pay and credit cards"
+  } : {
+    title:"ادعم نادي الجبال",
+    text :"التطبيق مجاني ويبقى مجانياً. لو أعجبك وحبيت تساهم في استمراره، هذا الباب مفتوح.",
+    btn  :"ادعم التطبيق",
+    note :"الدفع عبر ميسر — مدى، آبل باي، والبطاقات الائتمانية"
+  };
+
+  const box = document.createElement("div");
+  box.className = "support";
+  box.innerHTML =
+    '<span class="support-ic"><svg class="ic"><use href="#i-heart"/></svg></span>' +
+    '<p class="support-title"></p><p class="support-text"></p>' +
+    '<a class="btn btn-support" target="_blank" rel="noopener noreferrer">' +
+      '<svg class="ic"><use href="#i-heart"/></svg><span></span></a>' +
+    '<p class="support-note"></p>';
+  box.querySelector(".support-title").textContent    = t.title;
+  box.querySelector(".support-text").textContent     = t.text;
+  box.querySelector(".btn-support span").textContent = t.btn;
+  box.querySelector(".support-note").textContent     = t.note;
+  box.querySelector("a").href = SUPPORT_URL;
+  sheetBox.insertBefore(box, anchor);
+})();

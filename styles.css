@@ -882,3 +882,25 @@ body.is-prep .run-clock{color:var(--soft)}
 }
 .rem-time:disabled{opacity:.5}
 .rem-note{margin:-2px 0 0;font-size:12.5px;color:var(--soft);line-height:1.5;align-self:flex-start;text-align:start}
+
+/* ---------------- بطاقة دعم التطبيق ---------------- */
+.support{
+  width:100%;margin-top:6px;padding:18px 16px 15px;
+  background:var(--tint-gold);border:1.5px solid var(--rule);border-radius:var(--r-md);
+  display:flex;flex-direction:column;align-items:center;gap:9px;
+}
+.support-ic{
+  width:46px;height:46px;border-radius:16px;background:var(--panel);color:var(--accent);
+  display:grid;place-items:center;
+}
+.support-ic .ic{width:24px;height:24px;fill:currentColor;stroke:none}
+.support-title{margin:0;font-size:17px;font-weight:600}
+.support-text{margin:0;font-size:14.5px;color:var(--soft);line-height:1.6}
+.btn-support{
+  background:var(--panel);color:var(--accent);border:1.5px solid var(--accent);
+  min-height:52px;text-decoration:none;box-shadow:var(--shadow-s);
+}
+.btn-support .ic{width:22px;height:22px;fill:currentColor;stroke:none}
+.support-note{margin:0;font-size:12.5px;color:var(--soft);line-height:1.5}
+/* الذهبي يثقل في الوضع الليلي — البنفسجي أهدأ */
+[data-theme="dark"] .support{background:var(--tint-plum)}
