@@ -57,11 +57,18 @@ function myStats(){
   const st = C.streakInfo();
   const done = C.S.sessions.filter(s => s.completed !== false);
   const ws = weekStart();
+  const wk = done.filter(s => s.at >= ws);
+  const sum = (a, k) => a.reduce((n, s) => n + (s[k] || 0), 0);
   return {
     streak: st.current,
     best: st.best,
-    week: done.filter(s => s.at >= ws).length,
+    week: wk.length,
     total: done.length,
+    /* لوحة ترتيب القروب: بالتمرين / بالدقائق / بالأوزان */
+    minsWeek: Math.round(sum(wk, "secs") / 60),
+    mins:     Math.round(sum(done, "secs") / 60),
+    volWeek:  Math.round(sum(wk, "volume")),
+    vol:      Math.round(sum(done, "volume")),
     lastAt: done.length ? done[0].at : 0,
     days: [...new Set(done.map(s => C.dayKey(s.at)))].sort().slice(-21),  // لعرض تقدّمه لأصدقائه
     frozen: Object.keys((C.S.freeze && C.S.freeze.used) || {}).sort().slice(-21),
@@ -601,27 +608,53 @@ function setTab(t){
 }
 
 /* ---------- الترتيب ---------- */
+/* ثلاثة تصنيفات، كلها على أساس هذا الأسبوع */
+const BOARD_SORTS = {
+  runs: { label:"بالتمرين", key:"week",     word:"تمرين هذا الأسبوع" },
+  mins: { label:"بالدقائق", key:"minsWeek", word:"دقيقة هذا الأسبوع" },
+  vol:  { label:"بالأوزان", key:"volWeek",  word:"كجم هذا الأسبوع" }
+};
+let boardSort = "runs";
+
+/* عدّاد الأسبوع في الملف العام يبقى على قيمته حتى يتمرّن صاحبه،
+   فنصفّره إذا كان محفوظاً من أسبوع فات */
+const thisWeek = (p, key) => (p && p.weekKey === weekKey()) ? (p[key] || 0) : 0;
+
 async function tabBoard(){
   const body = $("gBody");
   body.innerHTML = `<p class="loading">${L("جارٍ التحميل…")}</p>`;
   const profs = await loadProfiles(curGroup.memberUids || []);
   boardCache = profs;
+  renderBoard(profs);
+}
+
+function renderBoard(profs){
+  const body = $("gBody");
+  const tabs = `<div class="pick-tabs board-tabs">` + Object.entries(BOARD_SORTS).map(([k, s]) =>
+    `<button data-bs="${k}" class="${k === boardSort ? "on" : ""}">${L(s.label)}</button>`).join("") + `</div>`;
+
+  const s = BOARD_SORTS[boardSort] || BOARD_SORTS.runs;
+  const val = p => thisWeek(p, s.key);
   const rows = Object.values(profs).sort((a,b) =>
-    (b.streak||0) - (a.streak||0) || (b.week||0) - (a.week||0) || (b.total||0) - (a.total||0));
-  if (!rows.length){ body.innerHTML = `<p class="empty">${L("ما فيه أعضاء بعد.")}</p>`; return; }
+    val(b) - val(a) || (b.streak||0) - (a.streak||0) || (b.total||0) - (a.total||0));
+
+  if (!rows.length){ body.innerHTML = tabs + `<p class="empty">${L("ما فيه أعضاء بعد.")}</p>`; return; }
   const medal = ["gold","silver","bronze"];
-  body.innerHTML = `<ul class="board">` + rows.map((p, i) => `
+  body.innerHTML = tabs + `<ul class="board">` + rows.map((p, i) => `
     <li class="${p.uid === myUid() ? "me" : ""}">
-      <span class="rank ${i < 3 ? medal[i] : ""}">${i + 1}</span>
+      <span class="rank ${i < 3 && val(p) > 0 ? medal[i] : ""}">${i + 1}</span>
       ${avatar(p, 44)}
       <span class="bd-main"><b><span class="nm">${esc(p.name)}${p.uid === myUid() ? L(" (أنت)") : ""}</span>${
         groupAdmins(curGroup).includes(p.uid) ? `<i class="adm">${L("مشرف")}</i>` : ""}</b>
-        <span>${p.week||0} ${L("تمرين هذا الأسبوع")}${p.lastAt ? L(" · آخر تمرين ") + since(p.lastAt) : ""}</span>
+        <span>${val(p)} ${L(s.word)}${p.lastAt ? L(" · آخر تمرين ") + since(p.lastAt) : ""}</span>
       </span>
       ${flame(p.streak, true)}
       ${p.uid === myUid() ? "" : `<button class="bd-more" data-uid="${esc(p.uid)}" aria-label="${L("خيارات")}">⋯</button>`}
     </li>`).join("") + `</ul>`;
 
+  body.querySelectorAll(".board-tabs button").forEach(b => {
+    b.onclick = () => { boardSort = b.dataset.bs; renderBoard(profs); };
+  });
   body.querySelectorAll(".bd-more").forEach(b => {
     b.onclick = e => { e.stopPropagation(); memberSheet(profs[b.dataset.uid]); };
   });

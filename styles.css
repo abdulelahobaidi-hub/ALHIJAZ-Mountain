@@ -466,6 +466,7 @@ body.is-prep .run-clock{color:var(--soft)}
 .gtabs button.on{background:var(--accent);color:var(--on-accent)}
 
 /* leaderboard */
+.board-tabs{margin:0 0 12px}
 .board li{background:var(--panel);border-radius:var(--r-md);padding:12px 14px;box-shadow:var(--shadow-s);
   display:flex;align-items:center;gap:12px}
 .board li.me{outline:2px solid var(--accent);outline-offset:-2px}
