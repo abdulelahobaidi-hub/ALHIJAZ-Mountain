@@ -4,7 +4,7 @@
    memberIds/{memberId}        بحث عن العضو برقمه
    friendships/{a_b}           صداقة بين طرفين
    groups/{gid}                القروب وأعضاؤه وتحدّيه
-   groups/{gid}/messages/{id}  المحادثة وسجل النشاط
+   groups/{gid}/messages/{id}  محادثة القروب (رسائل فقط)
    groups/{gid}/plans/{id}     الجداول المنشورة للقروب
    groupCodes/{CODE}           بحث عن القروب بكود الدعوة
    ============================================================ */
@@ -412,11 +412,13 @@ function duelHTML(f){
 /* ============================================================
    WORKOUT HOOK
    ============================================================ */
+/* التمرين يُسجَّل في تبويب «النشاط» لا في المحادثة —
+   المحادثة للرسائل والجداول وحدها. */
 export async function socialAfterWorkout(sess){
   if (!isCloud()) return;
   await syncProfile();
-  await pushDuelScores();
   if (!groups.length) await loadGroups();
+  await pushDuelScores();
   const { db, m } = fb();
   const text = L("خلّص {0} — {1} جولة", sess.planName || L("تمرين"), sess.rounds);
   for (const g of groups){
@@ -591,8 +593,51 @@ function setTab(t){
   closeChat();
   if (t === "board") tabBoard();
   if (t === "chal")  tabChallenge();
+  if (t === "acts")  tabActivity();
   if (t === "chat")  tabChat();
   if (t === "plans") tabPlans();
+}
+
+/* ---------- النشاط ----------
+   تمارين الأعضاء المكتملة، ولكل واحد تصفيقة تشجيع. */
+function tabActivity(){
+  const body = $("gBody"), g = curGroup, { db, m } = fb();
+  body.innerHTML = `<p class="loading">${L("جارٍ التحميل…")}</p>`;
+
+  const q = m.query(m.collection(db, "groups", g.id, "messages"),
+                    m.orderBy("at", "desc"), m.limit(40));
+  unsubChat = m.onSnapshot(q, snap => {
+    if (gTab !== "acts") return;
+    const acts = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+                     .filter(x => x.kind === "sys");
+    if (!acts.length){
+      body.innerHTML = `<p class="empty">${L("ما فيه نشاط بعد — أول تمرين يظهر هنا.")}</p>`;
+      return;
+    }
+    body.innerHTML = `<ul class="acts">` + acts.map(a => {
+      const n = (a.claps || []).length;
+      const mine = (a.claps || []).includes(myUid());
+      return `<li class="sys">
+        <span class="sys-dot"></span>
+        <span><b>${esc(a.name)}</b> ${esc(a.text)}<small>${since(a.at)}</small></span>
+        <button class="clap ${mine ? "on" : ""}" data-id="${esc(a.id)}"
+          ${a.uid === myUid() ? "disabled" : ""}>👏${n ? " " + n : ""}</button>
+      </li>`;
+    }).join("") + `</ul>`;
+
+    body.querySelectorAll(".clap").forEach(b => {
+      b.onclick = async () => {
+        b.disabled = true;
+        try {
+          await m.updateDoc(m.doc(db, "groups", g.id, "messages", b.dataset.id),
+                            { claps: m.arrayUnion(myUid()) });
+        } catch(err){ console.error(err); b.disabled = false; }
+      };
+    });
+  }, err => {
+    console.error("activity", err);
+    body.innerHTML = `<p class="empty">${L("تعذّر تحميل النشاط — تأكد من نشر قواعد")} Firestore.</p>`;
+  });
 }
 
 /* ---------- قائمة الأصدقاء وترتيبها ----------
@@ -755,7 +800,7 @@ function tabChat(){
     el.value = "";
     try {
       await m.addDoc(m.collection(db, "groups", g.id, "messages"),
-        { uid: myUid(), name: C.S.user.name, text, at: Date.now(), kind: "msg", claps: [] });
+        { uid: myUid(), name: C.S.user.name, text, at: Date.now(), kind: "msg" });
     } catch(err){ console.error(err); C.toast(L("ما انرسلت الرسالة")); el.value = text; }
   };
   $("chatSend").onclick = send;
