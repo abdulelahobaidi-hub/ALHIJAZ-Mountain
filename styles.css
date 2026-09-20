@@ -467,6 +467,16 @@ body.is-prep .run-clock{color:var(--soft)}
 }
 .gtabs button.on{background:var(--accent);color:var(--on-accent)}
 
+/* ترتيب قائمة الأصدقاء — رموز بدل نص */
+.sort-chips{display:flex;gap:8px;margin:-6px 0 2px}
+.sort-chip{
+  width:46px;height:40px;flex:0 0 auto;border:1.5px solid var(--rule);
+  background:var(--panel);border-radius:14px;cursor:pointer;
+  font-size:19px;line-height:1;display:grid;place-items:center;
+  filter:grayscale(1);opacity:.5;transition:opacity .12s ease;
+}
+.sort-chip.on{background:var(--tint-rose);border-color:var(--accent);filter:none;opacity:1}
+
 /* leaderboard */
 .board-tabs{margin:0 0 12px}
 .board li{background:var(--panel);border-radius:var(--r-md);padding:12px 14px;box-shadow:var(--shadow-s);

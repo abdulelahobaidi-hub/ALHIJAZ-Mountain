@@ -489,21 +489,9 @@ export function renderClub(){
   });
 
   /* friends */
-  const fl = $("friendList"); fl.innerHTML = "";
   $("friendEmpty").hidden = friends.length > 0;
   $("friendEmpty").textContent = L("ما عندك أصدقاء بعد. أضف صديق برقم عضويته.");
-  friends.forEach(f => {
-    const li = document.createElement("li");
-    li.innerHTML = `
-      ${avatar(f)}
-      <span class="fr-main"><b><span class="nm">${esc(f.name)}</span>${flame(f.streak)}</b>
-        <span>${f.week||0} ${L("تمرين هذا الأسبوع")}${f.lastAt ? " · " + since(f.lastAt) : ""}</span>
-      </span>
-      <button class="fr-chat" aria-label="${L("محادثة")}"><svg class="ic"><use href="#i-send"/></svg></button>`;
-    li.querySelector(".fr-chat").onclick = e => { e.stopPropagation(); openDM(f); };
-    li.onclick = () => openFriendProfile(f);
-    fl.appendChild(li);
-  });
+  renderFriendList();
 
   /* groups */
   const gl = $("groupList"); gl.innerHTML = "";
@@ -605,6 +593,51 @@ function setTab(t){
   if (t === "chal")  tabChallenge();
   if (t === "chat")  tabChat();
   if (t === "plans") tabPlans();
+}
+
+/* ---------- قائمة الأصدقاء وترتيبها ----------
+   الرموز بدل النص: 🔥 السلسلة · ⏱️ الدقائق · 🏋️ الأوزان */
+const FR_SORTS = {
+  streak: { icon:"🔥", label:"السلسلة", line: f => `${f.streak||0} ${L("يوم متتالٍ")}` },
+  mins:   { icon:"⏱️", label:"الدقائق", line: f => `${thisWeek(f,"minsWeek")} ${L("دقيقة هذا الأسبوع")}` },
+  vol:    { icon:"🏋️", label:"الأوزان", line: f => `${thisWeek(f,"volWeek")} ${L("كجم هذا الأسبوع")}` }
+};
+let frSort = "streak";
+
+function frValue(f, key){
+  return key === "streak" ? (f.streak || 0)
+       : key === "mins"   ? thisWeek(f, "minsWeek")
+       :                    thisWeek(f, "volWeek");
+}
+
+function renderFriendList(){
+  const fl = $("friendList"); fl.innerHTML = "";
+
+  const bar = $("frSort");
+  bar.hidden = friends.length < 2;                  // صديق واحد لا يحتاج ترتيباً
+  bar.innerHTML = Object.entries(FR_SORTS).map(([k, s]) =>
+    `<button type="button" class="sort-chip${k === frSort ? " on" : ""}" data-fs="${k}"
+       aria-label="${L("رتّب حسب")} ${L(s.label)}" title="${L(s.label)}">${s.icon}</button>`).join("");
+  bar.querySelectorAll(".sort-chip").forEach(b => {
+    b.onclick = () => { frSort = b.dataset.fs; renderFriendList(); };
+  });
+
+  const s = FR_SORTS[frSort] || FR_SORTS.streak;
+  const rows = [...friends].sort((a, b) =>
+    frValue(b, frSort) - frValue(a, frSort) || (b.week||0) - (a.week||0));
+
+  rows.forEach(f => {
+    const li = document.createElement("li");
+    li.innerHTML = `
+      ${avatar(f)}
+      <span class="fr-main"><b><span class="nm">${esc(f.name)}</span>${flame(f.streak)}</b>
+        <span>${s.line(f)}${f.lastAt ? " · " + since(f.lastAt) : ""}</span>
+      </span>
+      <button class="fr-chat" aria-label="${L("محادثة")}"><svg class="ic"><use href="#i-send"/></svg></button>`;
+    li.querySelector(".fr-chat").onclick = e => { e.stopPropagation(); openDM(f); };
+    li.onclick = () => openFriendProfile(f);
+    fl.appendChild(li);
+  });
 }
 
 /* ---------- الترتيب ---------- */
