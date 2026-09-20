@@ -1271,6 +1271,15 @@ document.querySelectorAll(".tabbar button").forEach(b => {
 
 $("btnQuickStart").onclick = () => { const p = todaySlot().plan; if (p) startRun(p); };
 
+/* ---------------- عامل الخدمة ----------------
+   يجلب من الشبكة أولاً فتصل التحديثات فوراً، ويرجع للنسخة المخزّنة
+   عند انقطاع الاتصال. نفس الملف الذي يستقبل الإشعارات — عامل واحد للنطاق. */
+if ("serviceWorker" in navigator){
+  addEventListener("load", () => {
+    navigator.serviceWorker.register("./firebase-messaging-sw.js").catch(() => {});
+  });
+}
+
 /* ---------------- مشاركة جدول برابط ----------------
    الجدول يُرمَّز في hash الرابط، ومن يفتحه يُعرض عليه حفظه.
    محتوى الرابط يأتي من شخص آخر، فكل قيمة تُقصّ وتُحوَّل لعدد قبل استعمالها. */

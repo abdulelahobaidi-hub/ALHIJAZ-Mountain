@@ -24,6 +24,7 @@ styles.css       التنسيق والألوان
 app.js                  منطق التطبيق و Firebase
 social.js               الأصدقاء والقروبات والمحادثة
 firebase-config.js      إعدادات مشروع Firebase  ← عدّل هذا الملف
+firebase-messaging-sw.js  عامل الخدمة: الإشعارات + تخزين «الشبكة أولاً»
 firestore.rules         قواعد الأمان
 manifest.webmanifest    إعدادات التثبيت على الجوال
 hero.jpg                صورة الغروب في شاشة الدخول
