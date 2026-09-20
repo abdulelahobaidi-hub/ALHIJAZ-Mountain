@@ -818,6 +818,26 @@ body.is-prep .run-clock{color:var(--soft)}
 .li-sub{margin:0;display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12px;color:var(--soft);
   padding-inline-start:2px}
 .li-go{color:var(--good);font-weight:600}
+/* ---------------- شرح التمرين بالصور ---------------- */
+.ht-img{
+  width:100%;border-radius:var(--r-md);border:1.5px solid var(--rule);
+  background:var(--panel-2);margin-bottom:4px;
+}
+.pk-info{
+  width:22px;height:22px;flex:0 0 auto;border-radius:50%;
+  background:var(--panel-2);border:1.5px solid var(--rule);color:var(--soft);
+  font-size:13px;font-weight:700;font-style:normal;display:grid;place-items:center;
+}
+.pk-info:active{background:var(--tint-rose);border-color:var(--accent);color:var(--accent)}
+/* اسم التمرين في شاشة التمرين يفتح الشرح */
+.run-move.has-shot{cursor:pointer}
+.run-move.has-shot::after{
+  content:"؟";display:inline-grid;place-items:center;vertical-align:middle;
+  width:23px;height:23px;margin-inline-start:9px;border-radius:50%;
+  background:var(--panel-2);border:1.5px solid var(--rule);color:var(--soft);
+  font-size:13px;font-weight:700;
+}
+
 /* ---------------- تسجيل تمرين يدوي ---------------- */
 .head-acts{display:flex;align-items:center;gap:10px;flex:0 0 auto}
 .chips{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;width:100%}

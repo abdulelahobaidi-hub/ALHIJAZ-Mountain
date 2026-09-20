@@ -139,7 +139,7 @@ function buildSegments(p){
       if (isReps(it)){
         const sets = Math.max(1, +it.sets||1);
         for (let s = 1; s <= sets; s++){
-          segs.push({ kind:"reps", phase:L("الجولة {0} من {1}", r, total), name:L(it.name),
+          segs.push({ kind:"reps", phase:L("الجولة {0} من {1}", r, total), name:L(it.name), key:it.key,
                       dur: Math.round(Math.max(1,+it.reps||1) * REP_SEC), open:true, round:r,
                       set:s, sets, reps:Math.max(1,+it.reps||1), weight:+it.weight||0, item:it, tip });
           if ((+it.rest||0) > 0 && !(lastItem && s === sets))
@@ -148,8 +148,8 @@ function buildSegments(p){
         return;
       }
 
-      segs.push({ kind:"work", phase:L("الجولة {0} من {1}", r, total), name:L(it.name), dur:+it.work||30,
-                  tip, round:r });
+      segs.push({ kind:"work", phase:L("الجولة {0} من {1}", r, total), name:L(it.name), key:it.key,
+                  dur:+it.work||30, tip, round:r });
       if ((+it.rest||0) > 0 && !lastItem)
         segs.push({ kind:"rest", phase:L("راحة"), name:L("استعد"), dur:+it.rest, tip:L("تنفّس عميق"), round:r });
     });
@@ -812,6 +812,13 @@ function renderPicker(){
       ? `<span></span><small><bdi>${e.sets}×${e.reps}</bdi> · ${e.weight} ${L("كجم")}</small>`
       : `<span></span><small>${e.work}${L("ث")}</small>`;
     b.querySelector("span").textContent = e.name;
+    if (hasShot(e.key)){
+      const q = document.createElement("i");
+      q.className = "pk-info"; q.textContent = "؟";
+      q.title = L("شرح التمرين");
+      q.onclick = ev => { ev.stopPropagation(); showHowto(e.key); };
+      b.appendChild(q);
+    }
     b.onclick = () => {
       S.editing.items.push(pickKind === "reps"
         ? { key:e.key, name:e.name, mode:"reps", sets:e.sets, reps:e.reps, weight:e.weight, rest:e.rest }
@@ -961,6 +968,7 @@ function renderRun(){
   $("runPhase").textContent = r.finished ? L("اكتمل التمرين")
     : lifting ? L("{0} · المجموعة {1} من {2}", seg.phase, seg.set, seg.sets) : seg.phase;
   $("runMove").textContent  = r.finished ? L(r.plan.name) : seg.name;
+  $("runMove").classList.toggle("has-shot", !r.finished && hasShot(seg.key));
   $("runTip").textContent   = r.finished ? L("انحفظ في سجلك")
     : lifting ? L("عدّة — اضغط «تم» بعد ما تخلّص المجموعة")
     : (r.running ? seg.tip : L("متوقف"));
@@ -1245,6 +1253,28 @@ document.querySelectorAll(".tabbar button").forEach(b => {
 });
 
 $("btnQuickStart").onclick = () => { const p = todaySlot().plan; if (p) startRun(p); };
+
+/* ---------------- شرح التمرين بالصور ----------------
+   الصور في مجلد ex/ باسم مفتاح التمرين. التمارين المخصّصة بلا صور. */
+const SHOTS = new Set([...LIB, ...WLIB].map(e => e.key));
+const hasShot = k => SHOTS.has(k);
+
+function showHowto(key, name, tip){
+  if (!hasShot(key)) return;
+  const e = [...LIB, ...WLIB].find(x => x.key === key);
+  $("htImg").src = `ex/${key}.webp`;
+  $("htImg").alt = name || (e && e.name) || "";
+  $("htName").textContent = name || (e && e.name) || L("تمرين");
+  $("htTip").textContent  = tip  || (e && e.tip)  || "";
+  $("howto").hidden = false;
+}
+$("htNo").onclick = () => { $("howto").hidden = true; };
+$("howto").addEventListener("click", e => { if (e.target.id === "howto") $("htNo").click(); });
+$("runMove").onclick = () => {
+  const r = S.run; if (!r || r.finished) return;
+  const seg = r.segs[r.idx]; if (!seg) return;
+  showHowto(seg.key, seg.name, seg.tip);
+};
 
 /* ---------------- تسجيل تمرين تمّ خارج التطبيق ---------------- */
 const MN_KINDS = ["مشي","جري","نادي","دراجة","سباحة","كرة قدم"];
