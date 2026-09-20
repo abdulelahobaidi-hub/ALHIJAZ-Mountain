@@ -70,7 +70,7 @@ profiles/{uid}                    الملف العام: الاسم والصور
 memberIds/{memberId}              رقم العضوية → المستخدم
 friendships/{uidA_uidB}           الصداقات
 groups/{gid}                      القروب وأعضاؤه وتحدّيه
-groups/{gid}/messages/{id}        المحادثة وسجل النشاط
+groups/{gid}/messages/{id}        محادثة القروب (رسائل ونشاط)
 groups/{gid}/plans/{id}           الجداول المنشورة للقروب
 groupCodes/{CODE}                 كود الدعوة → القروب
 friendRequests/{from_to}          طلبات الصداقة
