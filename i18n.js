@@ -640,6 +640,9 @@ const EN = {
   "سجّل تمرين": "Log a workout",
   "تمرين تمّ خارج التطبيق — يدخل في السجل وفي عدّاد الأيام المتتالية.":
     "A workout done outside the app — it counts in your log and your streak.",
+  "من جداولي": "From my plans",
+  "نشاط آخر": "Other activity",
+  "الجدول": "Plan",
   "النشاط": "Activity",
   "اسم التمرين": "Workout name",
   "مثال: مشي": "e.g. Walking",

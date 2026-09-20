@@ -1204,11 +1204,11 @@ function renderLog(){
     if (s.completed === false) li.className = "partial";
     if (s.manual) li.className = "manual";
     const icon = s.manual ? "user" : s.completed === false ? "timer" : "check";
-    const meta = s.manual
+    const meta = (s.manual && !s.planId)
       ? `${date} · ${time} · ${mmss(s.secs)}`
       : `${date} · ${time} · ${s.rounds}/${s.total || s.rounds} ${L("جولة")} · ${mmss(s.secs)}`;
     /* الجدول ما زال موجوداً؟ إذاً نعرض زر التكرار */
-    const again = !s.manual && s.planId && S.plans.some(p => p.id === s.planId);
+    const again = s.planId && S.plans.some(p => p.id === s.planId);
     li.innerHTML =
       `<span class="log-ic"><svg class="ic"><use href="#i-${icon}"/></svg></span>
        <span class="log-main"><b></b><span>${meta}</span></span>
@@ -1283,6 +1283,22 @@ const dateInput = ms => {   // YYYY-MM-DD بالتوقيت المحلي
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 };
 
+/* المصدر: جدول محفوظ أو نشاط يكتبه المستخدم */
+let mnSrc = "free";
+function mnMode(src){
+  mnSrc = S.plans.length ? src : "free";
+  $("mnPlanBox").hidden = mnSrc !== "plan";
+  $("mnFreeBox").hidden = mnSrc === "plan";
+  document.querySelectorAll("#mnTabs button").forEach(b =>
+    b.classList.toggle("on", b.dataset.ms === mnSrc));
+  if (mnSrc === "plan") mnPlanMins();
+}
+/* مدة الجدول المختار تُملأ تلقائياً */
+function mnPlanMins(){
+  const p = S.plans.find(x => x.id === $("mnPlan").value);
+  if (p) $("mnMins").value = Math.max(1, Math.round(planSeconds(p) / 60));
+}
+
 $("btnManual").onclick = () => {
   $("mnKinds").innerHTML = MN_KINDS.map(k =>
     `<button type="button" class="chip">${L(k)}</button>`).join("");
@@ -1298,14 +1314,26 @@ $("btnManual").onclick = () => {
   const today = dateInput(Date.now());
   $("mnDate").value = today;
   $("mnDate").max   = today;
+
+  $("mnPlan").innerHTML = S.plans.map(p =>
+    `<option value="${p.id}"></option>`).join("");
+  S.plans.forEach((p, i) => { $("mnPlan").options[i].textContent = L(p.name); });
+  $("mnTabs").hidden = !S.plans.length;
+  mnMode(S.plans.length ? "plan" : "free");
   $("manual").hidden = false;
 };
+
+document.querySelectorAll("#mnTabs button").forEach(b => {
+  b.onclick = () => mnMode(b.dataset.ms);
+});
+$("mnPlan").onchange = mnPlanMins;
 
 $("mnNo").onclick = () => { $("manual").hidden = true; };
 $("manual").addEventListener("click", e => { if (e.target.id === "manual") $("mnNo").click(); });
 
 $("mnSave").onclick = async () => {
-  const name = ($("mnName").value || "").trim();
+  const plan = mnSrc === "plan" ? S.plans.find(p => p.id === $("mnPlan").value) : null;
+  const name = plan ? L(plan.name) : ($("mnName").value || "").trim();
   const mins = Math.round(Number($("mnMins").value));
   if (!name){ toast(L("اكتب اسم التمرين")); $("mnName").focus(); return; }
   if (!(mins > 0)){ toast(L("اكتب مدة التمرين بالدقائق")); $("mnMins").focus(); return; }
@@ -1316,9 +1344,10 @@ $("mnSave").onclick = async () => {
   const isToday = dateInput(picked.getTime()) === dateInput(Date.now());
   const at = Math.min(isToday ? Date.now() : picked.getTime(), Date.now());
 
+  const rounds = plan ? planRounds(plan) : 1;
   const sess = {
-    id: uid(), at, planId: "", planName: name,
-    rounds: 1, total: 1, secs: mins * 60, completed: true, manual: true
+    id: uid(), at, planId: plan ? plan.id : "", planName: name,
+    rounds, total: rounds, secs: mins * 60, completed: true, manual: true
   };
   $("manual").hidden = true;
   await saveSession(sess);
