@@ -1193,11 +1193,25 @@ function renderLog(){
     const time = d.toLocaleTimeString(LOC(), { hour:"numeric", minute:"2-digit" });
     const li = document.createElement("li");
     if (s.completed === false) li.className = "partial";
+    if (s.manual) li.className = "manual";
+    const icon = s.manual ? "user" : s.completed === false ? "timer" : "check";
+    const meta = s.manual
+      ? `${date} · ${time} · ${mmss(s.secs)}`
+      : `${date} · ${time} · ${s.rounds}/${s.total || s.rounds} ${L("جولة")} · ${mmss(s.secs)}`;
+    /* الجدول ما زال موجوداً؟ إذاً نعرض زر التكرار */
+    const again = !s.manual && s.planId && S.plans.some(p => p.id === s.planId);
     li.innerHTML =
-      `<span class="log-ic"><svg class="ic"><use href="#i-${s.completed === false ? "timer" : "check"}"/></svg></span>
-       <span class="log-main"><b></b><span>${date} · ${time} · ${s.rounds}/${s.total || s.rounds} ${L("جولة")} · ${mmss(s.secs)}</span></span>
+      `<span class="log-ic"><svg class="ic"><use href="#i-${icon}"/></svg></span>
+       <span class="log-main"><b></b><span>${meta}</span></span>
+       ${again ? `<button class="log-again" aria-label="${L("كرّر هذا التمرين")}"><svg class="ic"><use href="#i-play"/></svg></button>` : ""}
        <button class="log-del" aria-label="${L("احذف هذا التمرين")}"><svg class="ic"><use href="#i-trash"/></svg></button>`;
     li.querySelector("b").textContent = L(s.planName || "تمرين");
+    const btnAgain = li.querySelector(".log-again");
+    if (btnAgain) btnAgain.onclick = () => {
+      const plan = S.plans.find(p => p.id === s.planId);
+      if (!plan){ toast(L("الجدول انحذف — ما عاد ممكن تكراره")); renderLog(); return; }
+      startRun(plan);
+    };
     li.querySelector(".log-del").onclick = async () => {
       const ok = await ask(L("حذف التمرين"), L("{0} — {1}. الحذف يؤثر على عدّاد الأيام المتتالية.", L(s.planName || "تمرين"), date));
       if (!ok) return;
@@ -1231,6 +1245,58 @@ document.querySelectorAll(".tabbar button").forEach(b => {
 });
 
 $("btnQuickStart").onclick = () => { const p = todaySlot().plan; if (p) startRun(p); };
+
+/* ---------------- تسجيل تمرين تمّ خارج التطبيق ---------------- */
+const MN_KINDS = ["مشي","جري","نادي","دراجة","سباحة","كرة قدم"];
+const dateInput = ms => {   // YYYY-MM-DD بالتوقيت المحلي
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+};
+
+$("btnManual").onclick = () => {
+  $("mnKinds").innerHTML = MN_KINDS.map(k =>
+    `<button type="button" class="chip">${L(k)}</button>`).join("");
+  $("mnKinds").querySelectorAll(".chip").forEach((b, i) => {
+    b.onclick = () => {
+      $("mnName").value = L(MN_KINDS[i]);
+      $("mnKinds").querySelectorAll(".chip").forEach(x => x.classList.remove("on"));
+      b.classList.add("on");
+    };
+  });
+  $("mnName").value = "";
+  $("mnMins").value = 30;
+  const today = dateInput(Date.now());
+  $("mnDate").value = today;
+  $("mnDate").max   = today;
+  $("manual").hidden = false;
+};
+
+$("mnNo").onclick = () => { $("manual").hidden = true; };
+$("manual").addEventListener("click", e => { if (e.target.id === "manual") $("mnNo").click(); });
+
+$("mnSave").onclick = async () => {
+  const name = ($("mnName").value || "").trim();
+  const mins = Math.round(Number($("mnMins").value));
+  if (!name){ toast(L("اكتب اسم التمرين")); $("mnName").focus(); return; }
+  if (!(mins > 0)){ toast(L("اكتب مدة التمرين بالدقائق")); $("mnMins").focus(); return; }
+
+  /* تاريخ اليوم نفسه يأخذ وقته الحالي، والأيام السابقة تُسجَّل ظهراً */
+  const [y, mo, d] = ($("mnDate").value || dateInput(Date.now())).split("-").map(Number);
+  const picked = new Date(y, mo - 1, d, 12, 0, 0);
+  const isToday = dateInput(picked.getTime()) === dateInput(Date.now());
+  const at = Math.min(isToday ? Date.now() : picked.getTime(), Date.now());
+
+  const sess = {
+    id: uid(), at, planId: "", planName: name,
+    rounds: 1, total: 1, secs: mins * 60, completed: true, manual: true
+  };
+  $("manual").hidden = true;
+  await saveSession(sess);
+  await refreshStreak();
+  socialAfterWorkout(sess);
+  renderLog(); renderHome();
+  toast(L("انحفظ التمرين — {0} دقيقة", mins));
+};
 $("btnNewPlan").onclick    = () => openBuilder(null);
 $("btnBuildCancel").onclick = () => show("plans");
 $("btnBuildSave").onclick   = saveBuilder;
@@ -1408,7 +1474,7 @@ const OPTS = lsGet("hejaz.opts", { sound:true, voice:true });
    ▸ غيّر السطر التالي فقط: ضع رابط الدفع من ميسر بين علامتي التنصيص.
    ▸ ما دام فارغاً، القسم كله لا يظهر في التطبيق إطلاقاً.
    ============================================================ */
-const SUPPORT_URL = "https://example.com";
+const SUPPORT_URL = "";
 
 (function supportCard(){
   if (!/^https:\/\/\S+$/i.test(SUPPORT_URL)) return;

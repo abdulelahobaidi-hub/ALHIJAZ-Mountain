@@ -634,6 +634,24 @@ const EN = {
   "الخميس": "Thursday", "الجمعة": "Friday", "السبت": "Saturday",
   "—": "—",
 
+  /* ---- تسجيل تمرين يدوي وتكراره ---- */
+  "سجّل تمرين": "Log a workout",
+  "تمرين تمّ خارج التطبيق — يدخل في السجل وفي عدّاد الأيام المتتالية.":
+    "A workout done outside the app — it counts in your log and your streak.",
+  "النشاط": "Activity",
+  "اسم التمرين": "Workout name",
+  "مثال: مشي": "e.g. Walking",
+  "المدة (دقيقة)": "Duration (minutes)",
+  "التاريخ": "Date",
+  "احفظ التمرين": "Save workout",
+  "اكتب اسم التمرين": "Enter the workout name",
+  "اكتب مدة التمرين بالدقائق": "Enter the duration in minutes",
+  "انحفظ التمرين — {0} دقيقة": "Workout saved — {0} minutes",
+  "مشي": "Walking", "جري": "Running", "نادي": "Gym",
+  "دراجة": "Cycling", "سباحة": "Swimming", "كرة قدم": "Football",
+  "كرّر هذا التمرين": "Repeat this workout",
+  "الجدول انحذف — ما عاد ممكن تكراره": "That plan was deleted — it can't be repeated",
+
   "المظهر": "Appearance",
   "تلقائي": "Auto",
   "فاتح": "Light",

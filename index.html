@@ -403,7 +403,14 @@
     <!-- ---------- HISTORY ---------- -->
     <section class="view" id="v-log" hidden>
       <div id="progressBox"></div>
-      <div class="head-row"><h2>السجل</h2><span class="count" id="logCount"></span></div>
+      <div class="head-row"><h2>السجل</h2>
+        <span class="head-acts">
+          <span class="count" id="logCount"></span>
+          <button class="btn btn-soft btn-pill" id="btnManual">
+            <svg class="ic"><use href="#i-plus"/></svg><span>سجّل تمرين</span>
+          </button>
+        </span>
+      </div>
       <ul class="log" id="log"></ul>
       <button class="btn btn-soft" id="logMore" hidden>عرض المزيد</button>
       <p class="empty" id="logEmpty">ما في تمارين مسجّلة بعد.</p>
@@ -511,6 +518,30 @@
     <p class="sheet-name" id="pkTitle">—</p>
     <div class="pick-list" id="pkList"></div>
     <button class="btn btn-soft" id="pkNo">إلغاء</button>
+  </div>
+</div>
+
+<!-- تسجيل تمرين تمّ خارج التطبيق -->
+<div class="sheet-wrap" id="manual" hidden>
+  <div class="sheet">
+    <span class="sheet-ic"><svg class="ic"><use href="#i-plus"/></svg></span>
+    <p class="sheet-name">سجّل تمرين</p>
+    <p class="sheet-mail">تمرين تمّ خارج التطبيق — يدخل في السجل وفي عدّاد الأيام المتتالية.</p>
+
+    <p class="sheet-label">النشاط</p>
+    <div class="chips" id="mnKinds"></div>
+    <label class="field"><span>اسم التمرين</span>
+      <input type="text" id="mnName" placeholder="مثال: مشي" autocomplete="off"></label>
+
+    <div class="rm-row">
+      <label class="field"><span>المدة (دقيقة)</span>
+        <input type="number" id="mnMins" min="1" max="600" step="5" value="30" inputmode="numeric"></label>
+      <label class="field"><span>التاريخ</span>
+        <input type="date" id="mnDate"></label>
+    </div>
+
+    <button class="btn btn-primary" id="mnSave">احفظ التمرين</button>
+    <button class="btn btn-soft" id="mnNo">إلغاء</button>
   </div>
 </div>
 
