@@ -636,6 +636,35 @@ const EN = {
 
   "شرح التمرين": "How to do it",
 
+  /* ---- تمرين سريع ---- */
+  "عندي وقت قصير": "Short on time",
+  "كم دقيقة عندك؟": "How many minutes do you have?",
+  "نجهّز لك تمريناً بالمدة المتاحة من مكتبة التمارين — بدون حفظ جدول.":
+    "We'll put together a workout for the time you have — nothing gets saved.",
+  "{0} دقيقة": "{0} min",
+  "{0} جولة · {1}": "{0} rounds · {1}",
+  "تمرين سريع — {0} دقيقة": "Quick workout — {0} min",
+
+  /* ---- تعديل تمرين في السجل ---- */
+  "عدّل هذا التمرين": "Edit this workout",
+  "عدّل التمرين": "Edit workout",
+  "عدّل المدة أو التاريخ — التغيير يؤثر على عدّاد الأيام المتتالية.":
+    "Change the duration or date — this affects your streak.",
+  "احفظ التعديل": "Save changes",
+  "انحفظ التعديل": "Changes saved",
+
+  /* ---- مشاركة جدول برابط ---- */
+  "شارك الجدول برابط": "Share plan by link",
+  "جرّب هذا الجدول في نادي الجبال: {0}": "Try this plan in Mountains Club: {0}",
+  "انتسخ رابط الجدول": "Plan link copied",
+  "وصلك جدول": "A plan was shared with you",
+  "احفظه في جداولي": "Save to my plans",
+  "تجاهل": "Dismiss",
+  "جدول مشترك": "Shared plan",
+  "{0} تمرين · {1} جولة · {2}": "{0} exercises · {1} rounds · {2}",
+  "انحفظ الجدول في جداولك": "Plan saved to your plans",
+
+
   /* ---- تسجيل تمرين يدوي وتكراره ---- */
   "سجّل تمرين": "Log a workout",
   "تمرين تمّ خارج التطبيق — يدخل في السجل وفي عدّاد الأيام المتتالية.":

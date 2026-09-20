@@ -260,6 +260,19 @@ async function deleteSession(id){
   }
 }
 
+async function updateSession(sess){
+  const i = S.sessions.findIndex(s => s.id === sess.id);
+  if (i < 0) return;
+  S.sessions[i] = sess;
+  S.sessions.sort((a, b) => b.at - a.at);
+  lsSet(LK.sessions, S.sessions);
+  if (S.mode === "cloud" && S.fb){
+    const { db, m } = S.fb;
+    try { await m.setDoc(m.doc(db, "users", S.user.uid, "sessions", sess.id), sess); }
+    catch(err){ console.error(err); toast(L("انحفظ محلياً — تعذّر الحفظ في السحابة")); }
+  }
+}
+
 async function saveSession(sess){
   S.sessions.unshift(sess);
   S.sessions = S.sessions.slice(0, 200);
@@ -633,6 +646,7 @@ async function enterApp(){
   await refreshStreak();
   show("home");
   socialBoot();
+  offerPlan();
 }
 
 /* ---------- home ---------- */
@@ -1211,10 +1225,12 @@ function renderLog(){
     const again = s.planId && S.plans.some(p => p.id === s.planId);
     li.innerHTML =
       `<span class="log-ic"><svg class="ic"><use href="#i-${icon}"/></svg></span>
-       <span class="log-main"><b></b><span>${meta}</span></span>
+       <button class="log-main" aria-label="${L("عدّل هذا التمرين")}"><b></b><span>${meta}
+         <svg class="ic log-pen"><use href="#i-edit"/></svg></span></button>
        ${again ? `<button class="log-again" aria-label="${L("كرّر هذا التمرين")}"><svg class="ic"><use href="#i-play"/></svg></button>` : ""}
        <button class="log-del" aria-label="${L("احذف هذا التمرين")}"><svg class="ic"><use href="#i-trash"/></svg></button>`;
     li.querySelector("b").textContent = L(s.planName || "تمرين");
+    li.querySelector(".log-main").onclick = () => openManual(s);
     const btnAgain = li.querySelector(".log-again");
     if (btnAgain) btnAgain.onclick = () => {
       const plan = S.plans.find(p => p.id === s.planId);
@@ -1254,6 +1270,121 @@ document.querySelectorAll(".tabbar button").forEach(b => {
 });
 
 $("btnQuickStart").onclick = () => { const p = todaySlot().plan; if (p) startRun(p); };
+
+/* ---------------- مشاركة جدول برابط ----------------
+   الجدول يُرمَّز في hash الرابط، ومن يفتحه يُعرض عليه حفظه.
+   محتوى الرابط يأتي من شخص آخر، فكل قيمة تُقصّ وتُحوَّل لعدد قبل استعمالها. */
+const b64e = s => btoa(String.fromCharCode(...new TextEncoder().encode(s)))
+  .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const b64d = s => new TextDecoder().decode(
+  Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/")), c => c.charCodeAt(0)));
+
+function planToLink(p){
+  const d = {
+    v: 1, n: p.name, w: +p.warm || 0, c: +p.cool || 0,
+    r: +p.repeat || 1, t: +p.target || 20,
+    i: p.items.map(it => isReps(it)
+      ? { k:it.key, n:it.name, m:1, s:+it.sets||1, p:+it.reps||1, g:+it.weight||0, r:+it.rest||0 }
+      : { k:it.key, n:it.name, w:+it.work||0, r:+it.rest||0 })
+  };
+  return location.origin + location.pathname + "#p=" + b64e(JSON.stringify(d));
+}
+
+function linkToPlan(code){
+  let d;
+  try { d = JSON.parse(b64d(code)); } catch(e){ return null; }
+  if (!d || !Array.isArray(d.i) || !d.i.length) return null;
+  const txt = (v, max) => String(v == null ? "" : v).slice(0, max).trim();
+  const num = (v, min, max, def) => {
+    const n = Math.round(Number(v));
+    return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : def;
+  };
+  return {
+    id: uid(),
+    name: txt(d.n, 60) || L("جدول مشترك"),
+    warm: num(d.w, 0, 900, 0), cool: num(d.c, 0, 900, 0),
+    repeat: num(d.r, 1, 30, 1), target: num(d.t, 1, 180, 20),
+    items: d.i.slice(0, 40).map(it => it && it.m === 1
+      ? { key: txt(it.k, 4) || "X", name: txt(it.n, 40) || L("تمرين"), mode:"reps",
+          sets: num(it.s, 1, 20, 3), reps: num(it.p, 1, 100, 10),
+          weight: num(it.g, 0, 500, 0), rest: num(it.r, 0, 600, 60) }
+      : { key: txt(it.k, 4) || "X", name: txt(it.n, 40) || L("تمرين"),
+          work: num(it && it.w, 5, 900, 45), rest: num(it && it.r, 0, 600, 15) })
+  };
+}
+
+$("btnBuildShare").onclick = async () => {
+  const p = S.editing;
+  if (!p || !p.items.length){ toast(L("الجدول فاضي")); return; }
+  const url = planToLink(p);
+  const text = L("جرّب هذا الجدول في نادي الجبال: {0}", L(p.name));
+  try {
+    if (navigator.share) await navigator.share({ title: L(p.name), text, url });
+    else { await navigator.clipboard.writeText(url); toast(L("انتسخ رابط الجدول")); }
+  } catch(e){
+    try { await navigator.clipboard.writeText(url); toast(L("انتسخ رابط الجدول")); } catch(_){}
+  }
+};
+
+/* جدول وصل عبر رابط */
+let gotPlan = null;
+(function readPlanLink(){
+  const m = (location.hash || "").match(/[#&]p=([A-Za-z0-9\-_]+)/);
+  if (!m) return;
+  gotPlan = linkToPlan(m[1]);
+  history.replaceState(null, "", location.pathname + location.search);
+})();
+
+function offerPlan(){
+  if (!gotPlan) return;
+  const p = gotPlan;
+  $("gpName").textContent = L(p.name);
+  $("gpMeta").textContent = L("{0} تمرين · {1} جولة · {2}",
+    p.items.length, planRounds(p), mmss(planSeconds(p)));
+  $("gotPlanSheet").hidden = false;
+}
+$("gpNo").onclick = () => { gotPlan = null; $("gotPlanSheet").hidden = true; };
+$("gpSave").onclick = async () => {
+  const p = gotPlan; gotPlan = null; $("gotPlanSheet").hidden = true;
+  if (!p) return;
+  await savePlan(p);
+  renderPlans(); renderHome();
+  show("plans");
+  toast(L("انحفظ الجدول في جداولك"));
+};
+
+/* ---------------- تمرين سريع بالمدة المتاحة ----------------
+   يُبنى من مكتبة التمارين ويُشغَّل مباشرة بلا حفظ. */
+const FAST_MINS = [5, 10, 15, 20];
+let fastPick = 10;
+
+function fastPlan(mins){
+  const target = mins * 60;
+  const n = mins <= 5 ? 3 : mins <= 10 ? 4 : 5;
+  const pool = [...LIB].sort(() => Math.random() - .5).slice(0, n);
+  const items = pool.map(e => ({ key:e.key, name:e.name, work:e.work, rest:e.rest }));
+  const warm = mins >= 10 ? 30 : 0;
+  const cool = mins >= 15 ? 30 : 0;
+  const one  = items.reduce((a, i) => a + estWork(i) + estRest(i), 0);
+  const repeat = Math.max(1, Math.min(12, Math.round((target - warm - cool) / one)));
+  return { id:"fast-" + uid(), name:L("تمرين سريع — {0} دقيقة", mins),
+           items, warm, cool, repeat, fast:true };
+}
+
+function fastRender(){
+  $("fastMins").innerHTML = FAST_MINS.map(m =>
+    `<button type="button" class="chip${m === fastPick ? " on" : ""}" data-m="${m}">${L("{0} دقيقة", m)}</button>`).join("");
+  $("fastMins").querySelectorAll(".chip").forEach(b => {
+    b.onclick = () => { fastPick = +b.dataset.m; fastRender(); };
+  });
+  const p = fastPlan(fastPick);
+  $("fastNote").textContent = L("{0} جولة · {1}", planRounds(p), mmss(planSeconds(p)));
+}
+
+$("btnFast").onclick = () => { fastRender(); $("fast").hidden = false; };
+$("fastNo").onclick  = () => { $("fast").hidden = true; };
+$("fast").addEventListener("click", e => { if (e.target.id === "fast") $("fastNo").click(); });
+$("fastGo").onclick  = () => { $("fast").hidden = true; startRun(fastPlan(fastPick)); };
 
 /* ---------------- شرح التمرين بالرسومات ----------------
    الرسومات في ex.js كنص SVG باسم مفتاح التمرين، وألوانها من متغيّرات
@@ -1299,7 +1430,18 @@ function mnPlanMins(){
   if (p) $("mnMins").value = Math.max(1, Math.round(planSeconds(p) / 60));
 }
 
-$("btnManual").onclick = () => {
+/* الورقة نفسها تُستعمل للتسجيل الجديد وللتعديل — mnEdit يحمل التمرين المعدَّل */
+let mnEdit = null;
+
+$("btnManual").onclick = () => openManual(null);
+
+function openManual(sess){
+  mnEdit = sess || null;
+  $("mnTitle").textContent = mnEdit ? L("عدّل التمرين") : L("سجّل تمرين");
+  $("mnIntro").textContent = mnEdit
+    ? L("عدّل المدة أو التاريخ — التغيير يؤثر على عدّاد الأيام المتتالية.")
+    : L("تمرين تمّ خارج التطبيق — يدخل في السجل وفي عدّاد الأيام المتتالية.");
+  $("mnSave").querySelector("span").textContent = mnEdit ? L("احفظ التعديل") : L("احفظ التمرين");
   $("mnKinds").innerHTML = MN_KINDS.map(k =>
     `<button type="button" class="chip">${L(k)}</button>`).join("");
   $("mnKinds").querySelectorAll(".chip").forEach((b, i) => {
@@ -1309,19 +1451,33 @@ $("btnManual").onclick = () => {
       b.classList.add("on");
     };
   });
-  $("mnName").value = "";
-  $("mnMins").value = 30;
   const today = dateInput(Date.now());
-  $("mnDate").value = today;
-  $("mnDate").max   = today;
+  $("mnDate").max = today;
 
   $("mnPlan").innerHTML = S.plans.map(p =>
     `<option value="${p.id}"></option>`).join("");
   S.plans.forEach((p, i) => { $("mnPlan").options[i].textContent = L(p.name); });
-  $("mnTabs").hidden = !S.plans.length;
-  mnMode(S.plans.length ? "plan" : "free");
+
+  if (mnEdit){
+    /* التعديل لا يغيّر مصدر التمرين — الاسم من جدول يبقى كما هو */
+    $("mnName").value = L(mnEdit.planName || "تمرين");
+    $("mnMins").value = Math.max(1, Math.round((mnEdit.secs || 0) / 60));
+    $("mnDate").value = dateInput(mnEdit.at);
+    $("mnTabs").hidden = true;
+    mnMode("free");
+    $("mnKinds").hidden = true;
+    $("mnName").disabled = !!mnEdit.planId;
+  } else {
+    $("mnName").value = "";
+    $("mnMins").value = 30;
+    $("mnDate").value = today;
+    $("mnKinds").hidden = false;
+    $("mnName").disabled = false;
+    $("mnTabs").hidden = !S.plans.length;
+    mnMode(S.plans.length ? "plan" : "free");
+  }
   $("manual").hidden = false;
-};
+}
 
 document.querySelectorAll("#mnTabs button").forEach(b => {
   b.onclick = () => mnMode(b.dataset.ms);
@@ -1344,12 +1500,24 @@ $("mnSave").onclick = async () => {
   const isToday = dateInput(picked.getTime()) === dateInput(Date.now());
   const at = Math.min(isToday ? Date.now() : picked.getTime(), Date.now());
 
+  $("manual").hidden = true;
+
+  if (mnEdit){
+    const sess = { ...mnEdit, at, planName: name, secs: mins * 60 };
+    await updateSession(sess);
+    await refreshStreak();
+    socialAfterWorkout(sess);
+    renderLog(); renderHome();
+    toast(L("انحفظ التعديل"));
+    mnEdit = null;
+    return;
+  }
+
   const rounds = plan ? planRounds(plan) : 1;
   const sess = {
     id: uid(), at, planId: plan ? plan.id : "", planName: name,
     rounds, total: rounds, secs: mins * 60, completed: true, manual: true
   };
-  $("manual").hidden = true;
   await saveSession(sess);
   await refreshStreak();
   socialAfterWorkout(sess);
@@ -1533,7 +1701,7 @@ const OPTS = lsGet("hejaz.opts", { sound:true, voice:true });
    ▸ غيّر السطر التالي فقط: ضع رابط الدفع من ميسر بين علامتي التنصيص.
    ▸ ما دام فارغاً، القسم كله لا يظهر في التطبيق إطلاقاً.
    ============================================================ */
-const SUPPORT_URL = "https://example.com";
+const SUPPORT_URL = "";
 
 (function supportCard(){
   if (!/^https:\/\/\S+$/i.test(SUPPORT_URL)) return;

@@ -157,6 +157,9 @@
         <button class="btn btn-primary btn-lg" id="btnQuickStart">
           <svg class="ic"><use href="#i-play"/></svg><span>ابدأ التمرين</span>
         </button>
+        <button class="btn btn-ghost" id="btnFast">
+          <svg class="ic"><use href="#i-timer"/></svg><span>عندي وقت قصير</span>
+        </button>
       </div>
 
       <div class="stats">
@@ -281,6 +284,9 @@
 
       <div class="build-actions">
         <button class="btn btn-primary btn-lg" id="btnBuildSave"><span>احفظ الجدول</span></button>
+        <button class="btn btn-soft" id="btnBuildShare">
+          <svg class="ic"><use href="#i-share"/></svg><span>شارك الجدول برابط</span>
+        </button>
         <button class="btn btn-danger" id="btnBuildDelete" hidden>
           <svg class="ic"><use href="#i-trash"/></svg><span>احذف الجدول</span>
         </button>
@@ -521,6 +527,33 @@
   </div>
 </div>
 
+<!-- جدول وصل عبر رابط -->
+<div class="sheet-wrap" id="gotPlanSheet" hidden>
+  <div class="sheet">
+    <span class="sheet-ic"><svg class="ic"><use href="#i-share"/></svg></span>
+    <p class="sheet-name">وصلك جدول</p>
+    <p class="sheet-mail" id="gpName">—</p>
+    <p class="sheet-sync" id="gpMeta">—</p>
+    <button class="btn btn-primary" id="gpSave">احفظه في جداولي</button>
+    <button class="btn btn-soft" id="gpNo">تجاهل</button>
+  </div>
+</div>
+
+<!-- تمرين سريع بالمدة المتاحة -->
+<div class="sheet-wrap" id="fast" hidden>
+  <div class="sheet">
+    <span class="sheet-ic"><svg class="ic"><use href="#i-timer"/></svg></span>
+    <p class="sheet-name">كم دقيقة عندك؟</p>
+    <p class="sheet-mail">نجهّز لك تمريناً بالمدة المتاحة من مكتبة التمارين — بدون حفظ جدول.</p>
+    <div class="chips" id="fastMins"></div>
+    <p class="rem-note" id="fastNote"></p>
+    <button class="btn btn-primary" id="fastGo">
+      <svg class="ic"><use href="#i-play"/></svg><span>ابدأ</span>
+    </button>
+    <button class="btn btn-soft" id="fastNo">إلغاء</button>
+  </div>
+</div>
+
 <!-- شرح التمرين بالرسومات -->
 <div class="sheet-wrap" id="howto" hidden>
   <div class="sheet">
@@ -535,8 +568,8 @@
 <div class="sheet-wrap" id="manual" hidden>
   <div class="sheet">
     <span class="sheet-ic"><svg class="ic"><use href="#i-plus"/></svg></span>
-    <p class="sheet-name">سجّل تمرين</p>
-    <p class="sheet-mail">تمرين تمّ خارج التطبيق — يدخل في السجل وفي عدّاد الأيام المتتالية.</p>
+    <p class="sheet-name" id="mnTitle">سجّل تمرين</p>
+    <p class="sheet-mail" id="mnIntro">تمرين تمّ خارج التطبيق — يدخل في السجل وفي عدّاد الأيام المتتالية.</p>
 
     <div class="pick-tabs" id="mnTabs" hidden>
       <button type="button" data-ms="plan">من جداولي</button>
@@ -560,7 +593,7 @@
         <input type="date" id="mnDate"></label>
     </div>
 
-    <button class="btn btn-primary" id="mnSave">احفظ التمرين</button>
+    <button class="btn btn-primary" id="mnSave"><span>احفظ التمرين</span></button>
     <button class="btn btn-soft" id="mnNo">إلغاء</button>
   </div>
 </div>
