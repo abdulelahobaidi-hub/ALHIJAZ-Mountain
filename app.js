@@ -1533,7 +1533,7 @@ const OPTS = lsGet("hejaz.opts", { sound:true, voice:true });
    ▸ غيّر السطر التالي فقط: ضع رابط الدفع من ميسر بين علامتي التنصيص.
    ▸ ما دام فارغاً، القسم كله لا يظهر في التطبيق إطلاقاً.
    ============================================================ */
-const SUPPORT_URL = "";
+const SUPPORT_URL = "https://example.com";
 
 (function supportCard(){
   if (!/^https:\/\/\S+$/i.test(SUPPORT_URL)) return;
