@@ -66,6 +66,12 @@ function liveStreak(p){
   return n;
 }
 
+/* نبذة الصديق — نص يكتبه غيري، فنقصّه ونهرّبه قبل عرضه */
+function aboutHTML(raw){
+  const t = String(raw == null ? "" : raw).replace(/\s+/g, " ").trim().slice(0, 100);
+  return t ? `<p class="fp-about">${esc(t)}</p>` : "";
+}
+
 function avatar(p, size = 46){
   const st = `width:${size}px;height:${size}px`;
   return p && p.photo
@@ -139,6 +145,7 @@ export async function syncProfile(){
   const s = myStats();
   const patch = {
     name: C.S.user.name, photo: C.S.user.photo || "",
+    about: String(C.S.about || "").slice(0, 100),
     ...s, weekKey: weekKey(), updatedAt: Date.now()
   };
   P = { ...P, ...patch };
@@ -1021,6 +1028,7 @@ async function openFriendProfile(f){
       <h2>${esc(fresh.name)} ${flame(fresh.streak, true)}</h2>
       <p>${fresh.lastAt ? L("آخر تمرين ") + since(fresh.lastAt) : L("ما سجّل تمارين بعد")}${
         fresh.badges ? ` ${L("· 🏅 {0} شارة", fresh.badges)}` : ""}</p>
+      ${aboutHTML(fresh.about)}
       ${weekStrip(fresh.days, fresh.frozen)}
     </div>
 
@@ -1171,16 +1179,20 @@ export async function unpublishMyPlan(planId){
    ============================================================ */
 const $ = id => document.getElementById(id);
 
-function promptSheet(title, text, value = ""){
+export function promptSheet(title, text, value = "", maxlength = 0){
   return new Promise(resolve => {
     $("pmTitle").textContent = title;
     $("pmText").textContent = text;
     const inp = $("pmInput");
     inp.value = value;
+    /* يوقف الكتابة عند الحد بدل قصّ ما كتبه بلا تنبيه */
+    if (maxlength > 0) inp.setAttribute("maxlength", maxlength);
+    else inp.removeAttribute("maxlength");
     $("prompt").hidden = false;
     setTimeout(() => inp.focus(), 50);
     const done = v => {
       $("prompt").hidden = true;
+      inp.removeAttribute("maxlength");
       $("pmOk").onclick = null; $("pmNo").onclick = null; inp.onkeydown = null;
       resolve(v);
     };
