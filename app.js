@@ -659,6 +659,8 @@ function renderHome(){
                        L("درّب اليوم عشان ما تنكسر السلسلة");
 
   const names = [L("ح"),L("ن"),L("ث"),L("ر"),L("خ"),L("ج"),L("س")];   // أحد إثنين ثلاثاء أربعاء خميس جمعة سبت
+  /* الحرف وحده لا يُفهم عند قارئ الشاشة — نعطي كل خانة اسماً كاملاً وحالة */
+  const full = [L("الأحد"),L("الإثنين"),L("الثلاثاء"),L("الأربعاء"),L("الخميس"),L("الجمعة"),L("السبت")];
   let h = "";
   /* أسبوع تقويمي ثابت: الأحد أولاً — وفي RTL يظهر أقصى اليمين — والسبت آخراً */
   const t0 = new Date(); t0.setHours(0,0,0,0);
@@ -669,9 +671,12 @@ function renderHome(){
     const k = dayKey(d);
     const on = st.days.has(k);
     const froze = st.frozen.has(k);
-    h += `<div class="day${on ? " on" : froze ? " froze" : ""}${k === tk ? " is-today" : ""}${d > t0 ? " ahead" : ""}">`
-       + `<i>${froze ? "❄️" : `<svg viewBox="0 0 24 24"><path d="m5.5 12.5 4.2 4.2 8.8-9"/></svg>`}</i>`
-       + `${names[d.getDay()]}</div>`;
+    const state = on ? L("تمرّنت") : froze ? L("محفوظ بتجميد")
+                : d > t0 ? L("لم يأت بعد") : L("بدون تمرين");
+    h += `<div class="day${on ? " on" : froze ? " froze" : ""}${k === tk ? " is-today" : ""}${d > t0 ? " ahead" : ""}"`
+       + ` role="img" aria-label="${full[d.getDay()]} — ${state}">`
+       + `<i aria-hidden="true">${froze ? "❄️" : `<svg viewBox="0 0 24 24"><path d="m5.5 12.5 4.2 4.2 8.8-9"/></svg>`}</i>`
+       + `<span aria-hidden="true">${names[d.getDay()]}</span></div>`;
   }
   $("week").innerHTML = h;
   $("freezeChip").innerHTML = S.freeze.credits
@@ -1760,3 +1765,45 @@ const SUPPORT_URL = "https://example.com";
   box.querySelector("a").href = SUPPORT_URL;
   sheetBox.insertBefore(box, anchor);
 })();
+
+
+/* ============================================================
+   حالة الأزرار لقارئ الشاشة
+   ============================================================
+   صنف .on يميّز التبويب أو الشريحة المختارة بالعين فقط.
+   نعكسه على aria-pressed / aria-current من مكان واحد،
+   فيشمل المجموعات المرسومة الآن والتي تُرسم لاحقاً. */
+const TOGGLE_GROUPS = ".gtabs, .pick-tabs, .chips, .sort-chips";
+
+function markPressed(b){
+  b.setAttribute("aria-pressed", b.classList.contains("on") ? "true" : "false");
+}
+function markCurrent(b){
+  if (b.classList.contains("on")) b.setAttribute("aria-current", "page");
+  else b.removeAttribute("aria-current");
+}
+function syncStates(root){
+  if (!root || (root.nodeType !== 1 && root !== document)) return;
+  const groups = [];
+  if (root.matches && root.matches(TOGGLE_GROUPS)) groups.push(root);
+  if (root.querySelectorAll) groups.push(...root.querySelectorAll(TOGGLE_GROUPS));
+  groups.forEach(g => g.querySelectorAll("button").forEach(markPressed));
+  if (root.querySelectorAll) root.querySelectorAll(".tabbar button").forEach(markCurrent);
+}
+
+addEventListener("load", () => {
+  syncStates(document);
+  new MutationObserver(recs => {
+    for (const r of recs){
+      if (r.type === "attributes"){
+        const b = r.target;
+        if (b.tagName !== "BUTTON") continue;
+        if (b.closest(TOGGLE_GROUPS)) markPressed(b);
+        else if (b.closest(".tabbar")) markCurrent(b);
+      } else {
+        r.addedNodes.forEach(syncStates);
+      }
+    }
+  }).observe(document.body,
+    { subtree:true, childList:true, attributes:true, attributeFilter:["class"] });
+});
