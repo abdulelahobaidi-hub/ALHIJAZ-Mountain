@@ -41,8 +41,29 @@ function since(ms){
   if (s < 60) return L("الحين");
   if (s < 3600) return L("قبل {0} دقيقة", Math.floor(s/60));
   if (s < 86400) return L("قبل {0} ساعة", Math.floor(s/3600));
-  if (s < 604800) return L("قبل {0} يوم", Math.floor(s/86400));
+  /* بعد ٢٤ ساعة نحسب بالأيام التقويمية لا بالساعات */
+  const a = new Date(ms); a.setHours(0,0,0,0);
+  const b = new Date();   b.setHours(0,0,0,0);
+  const d = Math.round((b - a) / 86400000);
+  if (d <= 1) return L("أمس");
+  if (d < 7)  return L("قبل {0} يوم", d);
   return new Date(ms).toLocaleDateString(LOC(), { day:"numeric", month:"short" });
+}
+
+/* السلسلة كما هي الآن.
+   الرقم المخزّن في ملف الصديق لقطة كتبها جهازه آخر مرة فتح التطبيق،
+   فيبقى معلّقاً إذا انقطع. نحسبها من أيامه المنشورة حتى تنكسر في وقتها. */
+function liveStreak(p){
+  if (!p) return 0;
+  const all = new Set([...(p.days || []), ...(p.frozen || [])]);
+  if (!all.size) return 0;
+  const probe = new Date(); probe.setHours(0,0,0,0);
+  if (!all.has(C.dayKey(probe))) probe.setDate(probe.getDate() - 1);   // أمس يبقيها حيّة
+  let n = 0;
+  while (all.has(C.dayKey(probe))){ n++; probe.setDate(probe.getDate() - 1); }
+  /* الأيام المنشورة محدودة بـ٢١ يوماً — إن استهلكناها كلها فالرقم المخزّن أدق */
+  if (n >= all.size) n = Math.max(n, p.streak || 0);
+  return n;
 }
 
 function avatar(p, size = 46){
@@ -136,7 +157,11 @@ async function loadProfiles(uids){
     const chunk = list.slice(i, i + 10);
     try {
       const q = m.query(m.collection(db, "profiles"), m.where(m.documentId(), "in", chunk));
-      (await m.getDocs(q)).forEach(d => { out[d.id] = { uid: d.id, ...d.data() }; });
+      (await m.getDocs(q)).forEach(d => {
+        const p = { uid: d.id, ...d.data() };
+        p.streak = liveStreak(p);        // لا نثق بالرقم المخزّن — قد يكون قديماً
+        out[d.id] = p;
+      });
     } catch(err){ console.error("loadProfiles", err); }
   }
   return out;
