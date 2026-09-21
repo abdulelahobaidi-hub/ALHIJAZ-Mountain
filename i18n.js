@@ -190,7 +190,7 @@ const EN = {
   "❄️ تكسب تجميداً كل ٧ أيام": "❄️ A freeze every 7 days",
   "ابدأ اليوم وخلّ العدّاد يمشي": "Start today and keep the counter moving",
   "أنجزت تمرين اليوم — استمر": "Today's workout is done — keep going",
-  "درّب اليوم عشان ما تنكسر السلسلة": "Train today so your streak stays alive",
+  "تدرب اليوم عشان ما تنكسر السلسلة": "Train today so your streak stays alive",
   "أيام متتالية": "day streak",
   "ح": "S", "ن": "M", "ث": "T", "ر": "W", "خ": "T", "ج": "F", "س": "S",
 
@@ -328,6 +328,33 @@ const EN = {
   "تمرّنت": "trained",
   "محفوظ بتجميد": "saved with a freeze",
   "لم يأت بعد": "not yet",
+
+  /* ---- ملفك الشخصي ---- */
+  "غيّر صورتك الشخصية": "Change your photo",
+  "بدون اسم": "No name",
+  "أضف نبذة قصيرة عنك": "Add a short bio",
+  "نبذة عنك": "About you",
+  "سطر قصير يظهر لأصدقائك — {0} حرف كحد أقصى": "A short line your friends see — {0} characters max",
+  "الاسم ما يصير فاضي": "Your name can't be empty",
+  "انحفظت النبذة": "Bio saved",
+  "انمسحت النبذة": "Bio cleared",
+
+  /* ---- القادم ---- */
+  "القادم": "Up next",
+  "{0} خلال أسبوعين": "{0} in the next two weeks",
+  "ما رتّبت أسبوعك بعد — وزّع جداولك على الأيام ويظهر لك القادم هنا.":
+    "You haven't set up your week yet — assign plans to days and what's next shows up here.",
+  "أيام أسبوعك مربوطة بجداول محذوفة — راجع ترتيب الأسبوع.":
+    "Your week points at deleted plans — check your weekly setup.",
+  "الأسابيع الثمانية القادمة": "The next eight weeks",
+  "يوم مخطّط": "days planned",
+  "مخطّط": "planned",
+  "تمّ": "done",
+  "مخطّط وما تمّ": "planned, not done",
+  "خريطة أيام التدريب المخطّطة للأسابيع القادمة": "Map of planned training days for the weeks ahead",
+  "بعد ٨ أسابيع": "in 8 weeks",
+  "أيام تدريبك المخطّطة: {0}": "Your planned training days: {0}",
+  "ما فيه": "none",
   "قبل {0} يوم": "{0} d ago",
   "دقيقة": "min",
 
