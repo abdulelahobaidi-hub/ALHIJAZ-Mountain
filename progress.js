@@ -74,7 +74,8 @@ function badgesHTML(){
 /* ============================================================
    الرسوم
    ============================================================ */
-function weekBuckets(n = 12){
+/* عدد التمارين في آخر n أسبوعاً — يُستعمل في معدّل الأسبوع أعلى الصفحة */
+function weekBuckets(n = 4){
   const done = C.S.sessions.filter(s => s.completed !== false);
   const out = [];
   const w0 = startOfWeek(Date.now());
@@ -82,70 +83,133 @@ function weekBuckets(n = 12){
     const from = new Date(w0.getTime() - i * 7 * DAY);
     const to   = new Date(from.getTime() + 7 * DAY);
     const rows = done.filter(s => s.at >= from.getTime() && s.at < to.getTime());
-    out.push({
-      from, count: rows.length,
-      mins: Math.round(rows.reduce((a,s) => a + (s.secs||0), 0) / 60)
-    });
+    out.push({ from, count: rows.length });
   }
   return out;
 }
 
-function columnsHTML(){
-  const weeks = weekBuckets(12);
-  const max = Math.max(1, ...weeks.map(w => w.count));
-  const last = weeks[weeks.length-1];
-  const bestIdx = weeks.reduce((bi, w, i) => w.count > weeks[bi].count ? i : bi, 0);
-  const fmt = d => d.toLocaleDateString(LOC(), { day:"numeric", month:"numeric" });
+/* الجدول الأسبوعي إلى الأمام: S.week يربط كل يوم بجدول أو براحة */
+function slotOf(d){
+  const s = (C.S.week || [])[d.getDay()] || "";
+  if (!s || s === "rest") return null;
+  return (C.S.plans || []).find(x => x.id === s) || null;
+}
+const hasSchedule = () => (C.S.week || []).some(s => s && s !== "rest");
+
+/* أقرب التمارين المخطّطة */
+function upcomingList(limit = 6, horizon = 35){
+  const out = [];
+  const t0 = startOfDay(Date.now());
+  const done = new Set(C.S.sessions.filter(s => s.completed !== false).map(s => C.dayKey(s.at)));
+  for (let i = 0; i < horizon && out.length < limit; i++){
+    const d = new Date(t0.getTime() + i * DAY);
+    const p = slotOf(d);
+    if (!p) continue;
+    out.push({ at:d, plan:p, today:i === 0, done: i === 0 && done.has(C.dayKey(d)) });
+  }
+  return out;
+}
+
+function upcomingHTML(){
+  if (!hasSchedule()){
+    return `
+    <div class="card chart">
+      <div class="chart-head"><h3>${L("القادم")}</h3></div>
+      <p class="empty">${L("ما رتّبت أسبوعك بعد — وزّع جداولك على الأيام ويظهر لك القادم هنا.")}</p>
+    </div>`;
+  }
+  const rows = upcomingList();
+  if (!rows.length){
+    return `
+    <div class="card chart">
+      <div class="chart-head"><h3>${L("القادم")}</h3></div>
+      <p class="empty">${L("أيام أسبوعك مربوطة بجداول محذوفة — راجع ترتيب الأسبوع.")}</p>
+    </div>`;
+  }
+  const wkEnd = startOfWeek(Date.now()).getTime() + 14 * DAY;
+  const soon  = rows.filter(r => r.at.getTime() < wkEnd).length;
+  const dayNm = d => d.toLocaleDateString(LOC(), { weekday:"long" });
+  const dayDt = d => d.toLocaleDateString(LOC(), { day:"numeric", month:"long" });
 
   return `
     <div class="card chart">
       <div class="chart-head">
-        <h3>${L("تمارينك في ١٢ أسبوعاً")}</h3>
-        <span>${last.count} ${L("هذا الأسبوع")}</span>
+        <h3>${L("القادم")}</h3>
+        <span>${L("{0} خلال أسبوعين", soon)}</span>
       </div>
-      <div class="cols" role="img" aria-label="${L("عدد التمارين لكل أسبوع خلال آخر ١٢ أسبوعاً")}">
-        ${weeks.map((w,i) => `
-          <div class="col${i === weeks.length-1 ? " now" : ""}" data-tip="${fmt(w.from)} · ${w.count} ${L("تمرين")} · ${w.mins} ${L("دقيقة")}">
-            ${(i === bestIdx || i === weeks.length-1) && w.count ? `<u>${w.count}</u>` : ""}
-            <i style="height:${Math.round(w.count / max * 100)}%"></i>
-          </div>`).join("")}
-      </div>
-      <div class="chart-foot"><span>${L("قبل ١٢ أسبوعاً")}</span><span>${L("هذا الأسبوع")}</span></div>
+      <ul class="upnext">` + rows.map(r => `
+        <li class="up${r.today ? " now" : ""}${r.done ? " ok" : ""}">
+          <span class="up-when"><b>${esc(dayNm(r.at))}</b><small>${esc(dayDt(r.at))}</small></span>
+          <span class="up-main">
+            <b>${esc(r.plan.name)}</b>
+            <span>${C.planRounds ? C.planRounds(r.plan) : ""} ${L("جولة")}</span>
+          </span>
+          ${r.today ? `<span class="up-tag">${r.done ? L("تمّ") : L("اليوم")}</span>` : ""}
+        </li>`).join("") + `</ul>
     </div>`;
 }
 
-function heatHTML(){
-  const days = new Set(C.S.sessions.filter(s => s.completed !== false).map(s => C.dayKey(s.at)));
-  const frozen = new Set(Object.keys((C.S.freeze && C.S.freeze.used) || {}));
+/* خريطة ثماني أسابيع: صف لكل يوم من أيام الأسبوع، وعمود لكل أسبوع.
+   الصفوف المسمّاة تُظهر إيقاعك — أي الأيام أيام تدريب وأيها راحة. */
+function planMapHTML(){
   const counts = {};
   C.S.sessions.filter(s => s.completed !== false)
     .forEach(s => { const k = C.dayKey(s.at); counts[k] = (counts[k]||0) + 1; });
+  const frozen = new Set(Object.keys((C.S.freeze && C.S.freeze.used) || {}));
 
-  const weeks = 16;
-  const end = startOfWeek(Date.now());
-  let cells = "";
-  for (let w = weeks - 1; w >= 0; w--){
-    const ws = new Date(end.getTime() - w * 7 * DAY);
-    for (let d = 0; d < 7; d++){
-      const day = new Date(ws.getTime() + d * DAY);
+  const WEEKS = 8;
+  const names = [L("ح"),L("ن"),L("ث"),L("ر"),L("خ"),L("ج"),L("س")];
+  const full  = [L("الأحد"),L("الإثنين"),L("الثلاثاء"),L("الأربعاء"),
+                 L("الخميس"),L("الجمعة"),L("السبت")];
+  const w0 = startOfWeek(Date.now());
+  const t0 = startOfDay(Date.now()).getTime();
+  let planned = 0, rows = "";
+
+  for (let d = 0; d < 7; d++){
+    let cells = "";
+    for (let w = 0; w < WEEKS; w++){
+      const day = new Date(w0.getTime() + w * 7 * DAY + d * DAY);
       const k = C.dayKey(day);
-      const future = day.getTime() > Date.now();
-      const n = counts[k] || 0;
-      const lvl = future ? "f" : frozen.has(k) ? "z" : n >= 3 ? 4 : n === 2 ? 3 : n === 1 ? 2 : 0;
-      const label = day.toLocaleDateString(LOC(), { weekday:"short", day:"numeric", month:"short" });
-      cells += `<span class="hc l${lvl}" style="grid-column:${weeks-w};grid-row:${d+1}"
-        data-tip="${label} · ${frozen.has(k) ? L("يوم راحة محمي") : n ? n + L(" تمرين") : L("بدون تمرين")}"></span>`;
+      const ahead = day.getTime() > t0;
+      const p = slotOf(day);
+      if (ahead && p) planned++;
+
+      let lvl, tip;
+      if (ahead){
+        lvl = p ? "p" : "0";
+        tip = p ? esc(p.name) : L("راحة");
+      } else {
+        const n = counts[k] || 0;
+        lvl = frozen.has(k) ? "z" : n >= 3 ? 4 : n === 2 ? 3 : n === 1 ? 2 : 0;
+        tip = frozen.has(k) ? L("يوم راحة محمي")
+            : n ? n + L(" تمرين")
+            : p ? L("مخطّط وما تمّ") : L("راحة");
+      }
+      const label = day.toLocaleDateString(LOC(), { day:"numeric", month:"short" });
+      cells += `<span class="hc l${lvl}" data-tip="${label} · ${tip}"></span>`;
     }
+    rows += `<div class="fwd-row"><i aria-hidden="true">${names[d]}</i>${cells}</div>`;
   }
+
+  const rhythm = [0,1,2,3,4,5,6].filter(d => {
+    const day = new Date(w0.getTime() + 7 * DAY + d * DAY);   // الأسبوع القادم كاملاً
+    return !!slotOf(day);
+  }).map(d => full[d]);
+
   return `
     <div class="card chart">
-      <div class="chart-head"><h3>${L("آخر ١٦ أسبوعاً")}</h3><span>${days.size} ${L("يوم تدريب")}</span></div>
-      <div class="heat" role="img" aria-label="${L("خريطة أيام التدريب في آخر ١٦ أسبوعاً")}">${cells}</div>
+      <div class="chart-head">
+        <h3>${L("الأسابيع الثمانية القادمة")}</h3>
+        <span>${planned} ${L("يوم مخطّط")}</span>
+      </div>
+      <div class="fwd" role="img"
+           aria-label="${L("أيام تدريبك المخطّطة: {0}", rhythm.join("، ") || L("ما فيه"))}">${rows}</div>
+      <div class="chart-foot"><span>${L("هذا الأسبوع")}</span><span>${L("بعد ٨ أسابيع")}</span></div>
       <div class="heat-key">
-        <span>${L("أقل")}</span>
-        <i class="hc l0"></i><i class="hc l2"></i><i class="hc l3"></i><i class="hc l4"></i>
-        <span>${L("أكثر")}</span>
+        <i class="hc lp"></i><span>${L("مخطّط")}</span>
+        <i class="hc l4"></i><span>${L("تمّ")}</span>
         <i class="hc lz"></i><span>${L("يوم محمي")}</span>
+        <i class="hc l0"></i><span>${L("راحة")}</span>
       </div>
     </div>`;
 }
@@ -342,10 +406,11 @@ export function renderProgress(){
   if (!box) return;
   const done = C.S.sessions.filter(s => s.completed !== false);
   if (!done.length){
-    box.innerHTML = `<p class="empty">${L("خلّص أول تمرين ويبدأ التحليل يبني نفسه.")}</p>`
+    box.innerHTML = upcomingHTML() + planMapHTML()
+      + `<p class="empty">${L("خلّص أول تمرين ويبدأ التحليل يبني نفسه.")}</p>`
       + bodyHTML() + badgesHTML();
   } else {
-    box.innerHTML = kpisHTML() + columnsHTML() + heatHTML() + bodyHTML() + liftsHTML() + plansHTML() + badgesHTML();
+    box.innerHTML = kpisHTML() + upcomingHTML() + planMapHTML() + bodyHTML() + liftsHTML() + plansHTML() + badgesHTML();
   }
   wireTips(box);
   const rm = document.getElementById("btnRM");
