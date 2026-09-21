@@ -975,10 +975,14 @@ function weekStrip(days, frozen){
   const fz  = new Set(frozen || []);
   const names = [L("ح"),L("ن"),L("ث"),L("ر"),L("خ"),L("ج"),L("س")];
   let h = "";
-  for (let i = 6; i >= 0; i--){
-    const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - i);
+  /* أسبوع تقويمي ثابت: الأحد أولاً — وفي RTL يظهر أقصى اليمين — والسبت آخراً */
+  const t0 = new Date(); t0.setHours(0,0,0,0);
+  const sun = new Date(t0); sun.setDate(sun.getDate() - sun.getDay());
+  for (let i = 0; i < 7; i++){
+    const d = new Date(sun); d.setDate(sun.getDate() + i);
     const k = C.dayKey(d), on = set.has(k), froze = !on && fz.has(k);
-    h += `<div class="fday${on ? " on" : froze ? " froze" : ""}"><i>${froze ? "❄️" : ""}</i>${names[d.getDay()]}</div>`;
+    h += `<div class="fday${on ? " on" : froze ? " froze" : ""}${d > t0 ? " ahead" : ""}">`
+       + `<i>${froze ? "❄️" : ""}</i>${names[d.getDay()]}</div>`;
   }
   return `<div class="fweek">${h}</div>`;
 }
