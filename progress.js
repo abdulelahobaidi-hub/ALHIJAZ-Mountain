@@ -406,6 +406,7 @@ export function renderProgress(){
   if (!box) return;
   const done = C.S.sessions.filter(s => s.completed !== false);
   if (!done.length){
+    /* القادم يعتمد على جدولك لا على سجلّك — فيظهر من أول يوم */
     box.innerHTML = upcomingHTML() + planMapHTML()
       + `<p class="empty">${L("خلّص أول تمرين ويبدأ التحليل يبني نفسه.")}</p>`
       + bodyHTML() + badgesHTML();
