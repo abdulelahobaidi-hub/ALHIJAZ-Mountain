@@ -46,6 +46,9 @@ h1,h2,h3{margin:0;font-weight:600;line-height:1.25}
 img{max-width:100%;display:block}
 [hidden]{display:none !important}
 :focus-visible{outline:3px solid var(--accent);outline-offset:3px;border-radius:12px}
+/* iOS يُكبّر الصفحة من نفسه عند التركيز على حقل أصغر من 16px.
+   نضمن ١٦ لكل حقل، فنستغني عن maximum-scale ويبقى التكبير باليد متاحاً. */
+input,select,textarea{font-size:16px}
 
 /* icons */
 .ic{width:24px;height:24px;flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:1.9;
@@ -244,7 +247,7 @@ main{flex:1;padding:18px 18px 110px;max-width:560px;width:100%;margin:0 auto}
 .row-nums{display:flex;gap:7px;flex:0 0 auto}
 .row-nums label{display:flex;flex-direction:column;align-items:center;font-size:10px;color:var(--soft);gap:3px}
 .row-nums input{
-  width:58px;text-align:center;font-family:inherit;font-size:15px;color:var(--ink);
+  width:58px;text-align:center;font-family:inherit;font-size:16px;color:var(--ink);
   background:var(--panel-2);border:1.5px solid var(--rule);border-radius:11px;padding:7px 2px;
 }
 .row-tools{display:flex;flex-direction:column;gap:4px;flex:0 0 auto}
@@ -531,7 +534,8 @@ body.is-prep .run-clock{color:var(--soft)}
 .sys small{display:block;font-size:11px;opacity:.85;margin-top:1px}
 .sys > .sys-dot{width:9px;height:9px;border-radius:50%;background:var(--gold);flex:0 0 auto}
 .clap{border:1.5px solid var(--rule);background:var(--panel-2);border-radius:99px;
-  padding:7px 13px;font-size:14px;font-family:inherit;cursor:pointer;flex:0 0 auto}
+  padding:7px 13px;font-size:14px;font-family:inherit;cursor:pointer;flex:0 0 auto;
+  min-height:40px;min-width:52px}
 .clap.on{border-color:var(--accent);background:var(--tint-rose);color:var(--accent);font-weight:600}
 .chat-bar{display:flex;gap:9px;margin-top:12px}
 .chat-bar input{
