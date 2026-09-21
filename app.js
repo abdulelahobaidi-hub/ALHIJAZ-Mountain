@@ -6,7 +6,7 @@
 
 import { initSocial, socialBoot, socialTeardown, socialAfterWorkout,
          renderClub, refreshClub, memberId,
-         publishMyPlan, unpublishMyPlan } from "./social.js";
+         publishMyPlan, unpublishMyPlan, syncProfile, promptSheet } from "./social.js";
 import { initProgress, renderProgress, badgeCount } from "./progress.js";
 import { L, LOC, SPEECH, lang, setLang, translateStatic } from "./i18n.js";
 import { shareCard } from "./share.js";
@@ -82,8 +82,12 @@ const S = {
   fb: null,              // {auth, db, mods}
   freeze: { credits: 0, used: {}, earnedUpto: 0 },  // تجميد السلسلة
   week: ["","","","","","",""],                    // خطة الأسبوع: "" بدون · "rest" راحة · معرّف جدول
-  body: []                                         // قياسات الجسم
+  body: [],                                        // قياسات الجسم
+  about: ""                                        // نبذة قصيرة يشوفها أصدقاؤك
 };
+
+const NAME_MAX  = 28;
+const ABOUT_MAX = 100;
 
 const $ = id => document.getElementById(id);
 const pad = n => (n < 10 ? "0" : "") + n;
@@ -162,7 +166,7 @@ function buildSegments(p){
 /* ============================================================
    STORAGE — local always; cloud when signed in
    ============================================================ */
-const LK = { plans:"hejaz.plans", sessions:"hejaz.sessions", mode:"hejaz.mode", freeze:"hejaz.freeze", week:"hejaz.week", body:"hejaz.body" };
+const LK = { plans:"hejaz.plans", sessions:"hejaz.sessions", mode:"hejaz.mode", freeze:"hejaz.freeze", week:"hejaz.week", body:"hejaz.body", me:"hejaz.me" };
 
 function lsGet(k, fb){ try { const r = localStorage.getItem(k); return r ? JSON.parse(r) : fb; } catch(e){ return fb; } }
 function lsSet(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
@@ -204,6 +208,23 @@ async function loadAll(){
       const snap = await m.getDoc(m.doc(db, "users", S.user.uid, "meta", "week"));
       if (snap.exists() && Array.isArray(snap.data().days)) S.week = snap.data().days;
     } catch(err){ console.error("week", err); }
+  }
+
+  /* ملفك: الاسم والصورة والنبذة — يغلبان ما يجي من مزوّد الدخول */
+  {
+    let me = lsGet(LK.me, null);
+    if (S.mode === "cloud" && S.fb){
+      const { db, m } = S.fb;
+      try {
+        const snap = await m.getDoc(m.doc(db, "users", S.user.uid, "meta", "me"));
+        if (snap.exists()) me = snap.data();
+      } catch(err){ console.error("me", err); }
+    }
+    if (me){
+      if (me.name)  S.user.name  = String(me.name).slice(0, NAME_MAX);
+      if (me.photo) S.user.photo = me.photo;
+      S.about = String(me.about || "").slice(0, ABOUT_MAX);
+    }
   }
 
   /* قياسات الجسم */
@@ -487,6 +508,69 @@ async function saveWeek(){
   }
 }
 
+/* ---------------- ملفك الشخصي ---------------- */
+/* صورة الحساب أعلى الشاشة — تُعاد بعد كل تغيير في الاسم أو الصورة */
+function paintAvatar(){
+  $("topSub").textContent = S.mode === "cloud"
+    ? L("أهلاً ") + S.user.name : L("وضع محلي على هذا الجهاز");
+  const a = $("btnAccount");
+  if (S.user.photo){ a.style.backgroundImage = `url("${S.user.photo}")`; $("avatarText").textContent = ""; }
+  else { a.style.backgroundImage = ""; $("avatarText").textContent = (S.user.name || L("ض")).trim().charAt(0); }
+}
+
+async function saveMe(){
+  const me = { name:S.user.name, photo:S.user.photo || "", about:S.about || "" };
+  lsSet(LK.me, me);
+  if (S.mode === "cloud" && S.fb){
+    const { db, m } = S.fb;
+    try { await m.setDoc(m.doc(db, "users", S.user.uid, "meta", "me"), me); }
+    catch(err){ console.error("saveMe", err); toast(L("انحفظ محلياً — تعذّر الحفظ في السحابة")); }
+  }
+  paintAvatar();
+  renderMeSheet();
+  try { await syncProfile(); } catch(err){ console.error(err); }   // حتى يشوفه أصدقاؤك
+}
+
+/* نصغّر الصورة في المتصفح ونخزّنها كنص داخل ملفك — بلا حاجة لتخزين خارجي */
+function pickPhoto(){
+  return new Promise(resolve => {
+    const inp = document.createElement("input");
+    inp.type = "file"; inp.accept = "image/*";
+    inp.onchange = () => {
+      const file = inp.files && inp.files[0];
+      if (!file) return resolve(null);
+      const img = new Image();
+      img.onload = () => {
+        const SZ = 192, c = document.createElement("canvas");
+        c.width = c.height = SZ;
+        const side = Math.min(img.width, img.height);
+        c.getContext("2d").drawImage(img, (img.width-side)/2, (img.height-side)/2,
+                                     side, side, 0, 0, SZ, SZ);
+        URL.revokeObjectURL(img.src);
+        resolve(c.toDataURL("image/jpeg", 0.72));
+      };
+      img.onerror = () => { URL.revokeObjectURL(img.src); resolve(null); };
+      img.src = URL.createObjectURL(file);
+    };
+    inp.click();
+  });
+}
+
+function renderMeSheet(){
+  $("sheetName").textContent = S.user.name || L("بدون اسم");
+  const av = $("meAv");
+  if (S.user.photo){
+    av.style.backgroundImage = `url("${S.user.photo}")`;
+    av.innerHTML = "";
+  } else {
+    av.style.backgroundImage = "";
+    av.innerHTML = `<svg class="ic"><use href="#i-user"/></svg>`;
+  }
+  const ab = $("meAbout"), txt = (S.about || "").trim();
+  $("sheetAbout").textContent = txt || L("أضف نبذة قصيرة عنك");
+  ab.classList.toggle("blank", !txt);
+}
+
 /* ---------------- قياسات الجسم ---------------- */
 async function saveBody(entry){
   S.body.unshift(entry);
@@ -639,10 +723,7 @@ async function enterApp(){
   await loadAll();
   $("gate").hidden = true;
   $("app").hidden = false;
-  $("topSub").textContent = S.mode === "cloud" ? L("أهلاً ") + S.user.name : L("وضع محلي على هذا الجهاز");
-  const a = $("btnAccount");
-  if (S.user.photo){ a.style.backgroundImage = `url("${S.user.photo}")`; $("avatarText").textContent = ""; }
-  else { a.style.backgroundImage = ""; $("avatarText").textContent = (S.user.name || L("ض")).trim().charAt(0); }
+  paintAvatar();
   await refreshStreak();
   show("home");
   socialBoot();
@@ -656,7 +737,7 @@ function renderHome(){
   $("streakSub").textContent =
     st.current === 0 ? L("ابدأ اليوم وخلّ العدّاد يمشي") :
     st.todayDone     ? L("أنجزت تمرين اليوم — استمر") :
-                       L("درّب اليوم عشان ما تنكسر السلسلة");
+                       L("تدرب اليوم عشان ما تنكسر السلسلة");
 
   const names = [L("ح"),L("ن"),L("ث"),L("ر"),L("خ"),L("ج"),L("س")];   // أحد إثنين ثلاثاء أربعاء خميس جمعة سبت
   /* الحرف وحده لا يُفهم عند قارئ الشاشة — نعطي كل خانة اسماً كاملاً وحالة */
@@ -1586,8 +1667,35 @@ $("btnStop").onclick = async () => {
   finishRun(false);
 };
 
+$("mePhoto").onclick = async () => {
+  const url = await pickPhoto();
+  if (!url) return;
+  S.user.photo = url;
+  await saveMe();
+  toast(L("انحفظت الصورة"));
+};
+
+$("meName").onclick = async () => {
+  const v = await promptSheet(L("اسمك"), L("الاسم اللي يشوفه أصدقاؤك"), S.user.name || "", NAME_MAX);
+  if (v === null) return;
+  const name = String(v).trim().slice(0, NAME_MAX);
+  if (!name){ toast(L("الاسم ما يصير فاضي")); return; }
+  S.user.name = name;
+  await saveMe();
+  toast(L("انحفظ الاسم"));
+};
+
+$("meAbout").onclick = async () => {
+  const v = await promptSheet(L("نبذة عنك"),
+    L("سطر قصير يظهر لأصدقائك — {0} حرف كحد أقصى", ABOUT_MAX), S.about || "", ABOUT_MAX);
+  if (v === null) return;
+  S.about = String(v).replace(/\s+/g, " ").trim().slice(0, ABOUT_MAX);
+  await saveMe();
+  toast(S.about ? L("انحفظت النبذة") : L("انمسحت النبذة"));
+};
+
 $("btnAccount").onclick = () => {
-  $("sheetName").textContent = S.user.name;
+  renderMeSheet();
   $("sheetMail").textContent = S.user.email || L("بدون بريد");
   const mid = memberId();
   $("sheetSync").textContent = S.mode === "cloud"
