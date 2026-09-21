@@ -974,6 +974,7 @@ function weekStrip(days, frozen){
   const set = new Set(days || []);
   const fz  = new Set(frozen || []);
   const names = [L("ح"),L("ن"),L("ث"),L("ر"),L("خ"),L("ج"),L("س")];
+  const full  = [L("الأحد"),L("الإثنين"),L("الثلاثاء"),L("الأربعاء"),L("الخميس"),L("الجمعة"),L("السبت")];
   let h = "";
   /* أسبوع تقويمي ثابت: الأحد أولاً — وفي RTL يظهر أقصى اليمين — والسبت آخراً */
   const t0 = new Date(); t0.setHours(0,0,0,0);
@@ -981,8 +982,12 @@ function weekStrip(days, frozen){
   for (let i = 0; i < 7; i++){
     const d = new Date(sun); d.setDate(sun.getDate() + i);
     const k = C.dayKey(d), on = set.has(k), froze = !on && fz.has(k);
-    h += `<div class="fday${on ? " on" : froze ? " froze" : ""}${d > t0 ? " ahead" : ""}">`
-       + `<i>${froze ? "❄️" : ""}</i>${names[d.getDay()]}</div>`;
+    const state = on ? L("تمرّنت") : froze ? L("محفوظ بتجميد")
+                : d > t0 ? L("لم يأت بعد") : L("بدون تمرين");
+    h += `<div class="fday${on ? " on" : froze ? " froze" : ""}${d > t0 ? " ahead" : ""}"`
+       + ` role="img" aria-label="${full[d.getDay()]} — ${state}">`
+       + `<i aria-hidden="true">${froze ? "❄️" : ""}</i>`
+       + `<span aria-hidden="true">${names[d.getDay()]}</span></div>`;
   }
   return `<div class="fweek">${h}</div>`;
 }
