@@ -766,26 +766,37 @@ function streakInfo(){
   const all = new Set([...days, ...frozen]);
   const today = new Date(); today.setHours(0,0,0,0);
 
-  /* يوم الراحة المحدّد يُعدّ يوماً في السلسلة — قرار المستخدم لا انقطاع */
-  const covered = d => all.has(dayKey(d)) || isRestDay(d);
+  /* السلسلة = أيام تدرّبت فيها فعلاً.
+     يوم الراحة والتجميد يصلان الحلقة ولا يُحسبان يوماً،
+     فالرقم يبقى صادقاً: «٥» تعني خمسة تمارين لا خمسة أيام مرّت. */
+  const bridged = d => all.has(dayKey(d)) || isRestDay(d);
 
-  let cur = 0, trained = 0;
+  let cur = 0;
   const probe = new Date(today);
-  if (!covered(probe)) probe.setDate(probe.getDate() - 1);           // أمس يبقيها حيّة
-  while (covered(probe)){
-    cur++;
-    if (days.has(dayKey(probe))) trained++;
+  if (!bridged(probe)) probe.setDate(probe.getDate() - 1);           // أمس يبقيها حيّة
+  while (bridged(probe)){
+    if (days.has(dayKey(probe))) cur++;
     probe.setDate(probe.getDate() - 1);
   }
-  /* أيام راحة وحدها ليست سلسلة — لازم تمرين واحد على الأقل */
-  if (!trained) cur = 0;
 
+  /* أطول سلسلة: نمشي على أيام التدريب، وبين كل يومين
+     نتأكد أن ما بينهما راحة أو تجميد لا انقطاعاً */
+  const sorted = [...days].sort();
   let best = 0, run = 0, prev = null;
-  [...all].sort().forEach(k => {
-    const d = new Date(k + "T00:00:00");
-    run = (prev && (d - prev) === 86400000) ? run + 1 : 1;
-    best = Math.max(best, run); prev = d;
+  sorted.forEach(k => {
+    if (prev){
+      let linked = true;
+      const d = new Date(prev + "T00:00:00"); d.setDate(d.getDate() + 1);
+      const end = new Date(k + "T00:00:00");
+      for (let guard = 0; d < end && guard < 60; guard++, d.setDate(d.getDate() + 1)){
+        if (!bridged(d)){ linked = false; break; }
+      }
+      run = linked ? run + 1 : 1;
+    } else run = 1;
+    best = Math.max(best, run);
+    prev = k;
   });
+
   return { current: cur, best, days, frozen, all, todayDone: days.has(dayKey(today)) };
 }
 
