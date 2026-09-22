@@ -16,6 +16,26 @@ const startOfDay = d => { const x = new Date(d); x.setHours(0,0,0,0); return x; 
 function startOfWeek(d){ const x = startOfDay(d); x.setDate(x.getDate() - x.getDay()); return x; }
 
 /* ============================================================
+   نطاق الشهر
+   ============================================================
+   كل أرقام هذه الصفحة للشهر الجاري وحده — يدخل شهر جديد
+   فتبدأ العدادات من الصفر. الشارات وحدها تبقى تراكمية،
+   لأنها إنجازات لا عدادات. */
+function monthStart(d = Date.now()){
+  const x = new Date(d); x.setHours(0,0,0,0); x.setDate(1); return x;
+}
+function monthEnd(d = Date.now()){
+  const x = monthStart(d); x.setMonth(x.getMonth() + 1); return x;
+}
+const monthName = () => new Date().toLocaleDateString(LOC(), { month:"long", year:"numeric" });
+
+/* تمارين الشهر الجاري — الأساس لكل بطاقة هنا */
+function monthSessions(){
+  const a = monthStart().getTime(), b = monthEnd().getTime();
+  return C.S.sessions.filter(s => s.completed !== false && s.at >= a && s.at < b);
+}
+
+/* ============================================================
    الشارات
    ============================================================ */
 export function badgeList(){
@@ -74,21 +94,8 @@ function badgesHTML(){
 /* ============================================================
    الرسوم
    ============================================================ */
-/* عدد التمارين في آخر n أسبوعاً — يُستعمل في معدّل الأسبوع أعلى الصفحة */
-function weekBuckets(n = 4){
-  const done = C.S.sessions.filter(s => s.completed !== false);
-  const out = [];
-  const w0 = startOfWeek(Date.now());
-  for (let i = n - 1; i >= 0; i--){
-    const from = new Date(w0.getTime() - i * 7 * DAY);
-    const to   = new Date(from.getTime() + 7 * DAY);
-    const rows = done.filter(s => s.at >= from.getTime() && s.at < to.getTime());
-    out.push({ from, count: rows.length });
-  }
-  return out;
-}
-
-/* الجدول الأسبوعي إلى الأمام: S.week يربط كل يوم بجدول أو براحة */
+/* الجدول الأسبوعي إلى الأمام: S.week يربط كل يوم بجدول أو براحة.
+   تُعرض في تبويب «الجداول» تحت خطة الأسبوع، لا هنا. */
 function slotOf(d){
   const s = (C.S.week || [])[d.getDay()] || "";
   if (!s || s === "rest") return null;
@@ -110,112 +117,81 @@ function upcomingList(limit = 6, horizon = 35){
   return out;
 }
 
-function upcomingHTML(){
+export function upcomingHTML(){
   if (!hasSchedule()){
-    return `
-    <div class="card chart">
-      <div class="chart-head"><h3>${L("القادم")}</h3></div>
-      <p class="empty">${L("ما رتّبت أسبوعك بعد — وزّع جداولك على الأيام ويظهر لك القادم هنا.")}</p>
-    </div>`;
+    return `<p class="empty">${L("ما رتّبت أسبوعك بعد — اضغط أي يوم فوق وحدد جدوله.")}</p>`;
   }
   const rows = upcomingList();
   if (!rows.length){
-    return `
-    <div class="card chart">
-      <div class="chart-head"><h3>${L("القادم")}</h3></div>
-      <p class="empty">${L("أيام أسبوعك مربوطة بجداول محذوفة — راجع ترتيب الأسبوع.")}</p>
-    </div>`;
+    return `<p class="empty">${L("أيام أسبوعك مربوطة بجداول محذوفة — راجع ترتيب الأسبوع.")}</p>`;
   }
-  const wkEnd = startOfWeek(Date.now()).getTime() + 14 * DAY;
-  const soon  = rows.filter(r => r.at.getTime() < wkEnd).length;
   const dayNm = d => d.toLocaleDateString(LOC(), { weekday:"long" });
   const dayDt = d => d.toLocaleDateString(LOC(), { day:"numeric", month:"long" });
 
-  return `
-    <div class="card chart">
-      <div class="chart-head">
-        <h3>${L("القادم")}</h3>
-        <span>${L("{0} خلال أسبوعين", soon)}</span>
-      </div>
-      <ul class="upnext">` + rows.map(r => `
-        <li class="up${r.today ? " now" : ""}${r.done ? " ok" : ""}">
-          <span class="up-when"><b>${esc(dayNm(r.at))}</b><small>${esc(dayDt(r.at))}</small></span>
-          <span class="up-main">
-            <b>${esc(r.plan.name)}</b>
-            <span>${C.planRounds ? C.planRounds(r.plan) : ""} ${L("جولة")}</span>
-          </span>
-          ${r.today ? `<span class="up-tag">${r.done ? L("تمّ") : L("اليوم")}</span>` : ""}
-        </li>`).join("") + `</ul>
-    </div>`;
+  return `<ul class="upnext">` + rows.map(r => `
+    <li class="up${r.today ? " now" : ""}${r.done ? " ok" : ""}">
+      <span class="up-when"><b>${esc(dayNm(r.at))}</b><small>${esc(dayDt(r.at))}</small></span>
+      <span class="up-main">
+        <b>${esc(r.plan.name)}</b>
+        <span>${C.planRounds ? C.planRounds(r.plan) : ""} ${L("جولة")}</span>
+      </span>
+      ${r.today ? `<span class="up-tag">${r.done ? L("تمّ") : L("اليوم")}</span>` : ""}
+    </li>`).join("") + `</ul>`;
 }
 
-/* خريطة ثماني أسابيع: صف لكل يوم من أيام الأسبوع، وعمود لكل أسبوع.
-   الصفوف المسمّاة تُظهر إيقاعك — أي الأيام أيام تدريب وأيها راحة. */
-function planMapHTML(){
-  const counts = {};
-  C.S.sessions.filter(s => s.completed !== false)
-    .forEach(s => { const k = C.dayKey(s.at); counts[k] = (counts[k]||0) + 1; });
-  const frozen = new Set(Object.keys((C.S.freeze && C.S.freeze.used) || {}));
-
-  const WEEKS = 8;
-  const names = [L("ح"),L("ن"),L("ث"),L("ر"),L("خ"),L("ج"),L("س")];
-  const full  = [L("الأحد"),L("الإثنين"),L("الثلاثاء"),L("الأربعاء"),
-                 L("الخميس"),L("الجمعة"),L("السبت")];
-  const w0 = startOfWeek(Date.now());
-  const t0 = startOfDay(Date.now()).getTime();
-  let planned = 0, rows = "";
-
-  for (let d = 0; d < 7; d++){
-    let cells = "";
-    for (let w = 0; w < WEEKS; w++){
-      const day = new Date(w0.getTime() + w * 7 * DAY + d * DAY);
-      const k = C.dayKey(day);
-      const ahead = day.getTime() > t0;
-      const p = slotOf(day);
-      if (ahead && p) planned++;
-
-      let lvl, tip;
-      if (ahead){
-        lvl = p ? "p" : "0";
-        tip = p ? esc(p.name) : L("راحة");
-      } else {
-        const n = counts[k] || 0;
-        lvl = frozen.has(k) ? "z" : n >= 3 ? 4 : n === 2 ? 3 : n === 1 ? 2 : 0;
-        tip = frozen.has(k) ? L("يوم راحة محمي")
-            : n ? n + L(" تمرين")
-            : p ? L("مخطّط وما تمّ") : L("راحة");
-      }
-      const label = day.toLocaleDateString(LOC(), { day:"numeric", month:"short" });
-      cells += `<span class="hc l${lvl}" data-tip="${label} · ${tip}"></span>`;
-    }
-    rows += `<div class="fwd-row"><i aria-hidden="true">${names[d]}</i>${cells}</div>`;
+/* عدد التمارين لكل أسبوع داخل الشهر الجاري */
+function monthWeeks(){
+  const a = monthStart(), b = monthEnd();
+  const rows = monthSessions();
+  const out = [];
+  let from = startOfWeek(a);                    // الأسبوع الذي يبدأ فيه الشهر
+  while (from < b){
+    const to = new Date(from.getTime() + 7 * DAY);
+    const inWeek = rows.filter(s => s.at >= from.getTime() && s.at < to.getTime());
+    out.push({
+      from: new Date(Math.max(from.getTime(), a.getTime())),
+      count: inWeek.length,
+      mins: Math.round(inWeek.reduce((n, s) => n + (s.secs||0), 0) / 60)
+    });
+    from = to;
   }
+  return out;
+}
 
-  const rhythm = [0,1,2,3,4,5,6].filter(d => {
-    const day = new Date(w0.getTime() + 7 * DAY + d * DAY);   // الأسبوع القادم كاملاً
-    return !!slotOf(day);
-  }).map(d => full[d]);
+function columnsHTML(){
+  const weeks = monthWeeks();
+  const total = weeks.reduce((n, w) => n + w.count, 0);
+  const max = Math.max(1, ...weeks.map(w => w.count));
+  const now = Date.now();
+  const fmt = d => d.toLocaleDateString(LOC(), { day:"numeric", month:"numeric" });
 
   return `
     <div class="card chart">
       <div class="chart-head">
-        <h3>${L("الأسابيع الثمانية القادمة")}</h3>
-        <span>${planned} ${L("يوم مخطّط")}</span>
+        <h3>${esc(monthName())}</h3>
+        <span>${L("{0} تمريناً هذا الشهر", total)}</span>
       </div>
-      <div class="fwd" role="img"
-           aria-label="${L("أيام تدريبك المخطّطة: {0}", rhythm.join("، ") || L("ما فيه"))}">${rows}</div>
-      <div class="chart-foot"><span>${L("هذا الأسبوع")}</span><span>${L("بعد ٨ أسابيع")}</span></div>
-      <div class="heat-key">
-        <i class="hc lp"></i><span>${L("مخطّط")}</span>
-        <i class="hc l4"></i><span>${L("تمّ")}</span>
-        <i class="hc lz"></i><span>${L("يوم محمي")}</span>
-        <i class="hc l0"></i><span>${L("راحة")}</span>
+      <div class="cols" role="img"
+           aria-label="${L("عدد التمارين لكل أسبوع خلال {0}", monthName())}">
+        ${weeks.map((w, i) => {
+          const to = new Date(w.from.getTime() + 7 * DAY);
+          const isNow = now >= w.from.getTime() && now < to.getTime();
+          return `
+          <div class="col${isNow ? " now" : ""}"
+               data-tip="${L("أسبوع {0}", i + 1)} · ${fmt(w.from)} · ${w.count} ${L("تمرين")} · ${w.mins} ${L("دقيقة")}">
+            ${w.count ? `<u>${w.count}</u>` : ""}
+            <i style="height:${Math.round(w.count / max * 100)}%"></i>
+          </div>`;
+        }).join("")}
+      </div>
+      <div class="chart-foot">
+        <span>${L("أول الشهر")}</span><span>${L("آخر الشهر")}</span>
       </div>
     </div>`;
 }
 
 function plansHTML(){
-  const done = C.S.sessions.filter(s => s.completed !== false);
+  const done = monthSessions();
   if (!done.length) return "";
   const by = {};
   done.forEach(s => { const k = s.planName || L("تمرين"); by[k] = (by[k]||0) + 1; });
@@ -243,7 +219,7 @@ const step = w => (w >= 40 ? 5 : 2.5);
 
 function liftRows(){
   const map = new Map();
-  C.S.sessions.filter(s => s.completed !== false && s.lifts && s.lifts.length)
+  monthSessions().filter(s => s.lifts && s.lifts.length)
     .slice().sort((a,b) => a.at - b.at)               // من الأقدم للأحدث
     .forEach(s => s.lifts.forEach(l => {
       const cur = map.get(l.name) ||
@@ -334,6 +310,92 @@ function deltaChip(now, was, unit, lowerBetter){
   return `<span class="bd-delta ${good ? "good" : "up"}">${d > 0 ? "+" : ""}${fmtN(d)} ${unit}</span>`;
 }
 
+/* ============================================================
+   مؤشرات الجسم
+   ============================================================
+   مؤشران معروفان يُحسبان من قياسات المستخدم نفسه:
+   كتلة الجسم (BMI) ونسبة الخصر إلى الطول (WHtR).
+   كلاهما مؤشر فرز عام لا تشخيص — والنص يقول ذلك صراحة،
+   ولا نعرض أي هدف وزن ولا سعرات ولا نصيحة غذائية. */
+const BMI_BANDS = [
+  { max: 18.5, key:"low",  name:() => L("أقل من النطاق المعتاد") },
+  { max: 25,   key:"ok",   name:() => L("ضمن النطاق المعتاد") },
+  { max: 30,   key:"up",   name:() => L("أعلى من النطاق المعتاد") },
+  { max: 1e9,  key:"up2",  name:() => L("أعلى بكثير من النطاق المعتاد") }
+];
+
+function bodyMetrics(){
+  const info = C.S.bodyInfo || {};
+  const h = +info.height || 0;
+  const all = (C.S.body || []).slice().sort((a,b) => a.at - b.at);
+  const last = all[all.length-1];
+  if (!last || !h) return null;
+
+  const out = { height:h, sex:info.sex || "", at:last.at };
+  if (last.weight > 0){
+    const m = h / 100;
+    out.bmi = Math.round(last.weight / (m*m) * 10) / 10;
+    out.bmiBand = BMI_BANDS.find(b => out.bmi < b.max);
+  }
+  if (last.waist > 0){
+    out.whtr = Math.round(last.waist / h * 100) / 100;
+    out.whtrKey = out.whtr < 0.5 ? "ok" : out.whtr < 0.6 ? "up" : "up2";
+    out.waist = last.waist;
+    /* عتبات محيط الخصر تختلف بين الذكر والأنثى — لهذا نسأل عن الجنس */
+    const band = out.sex === "f" ? [80, 88] : out.sex === "m" ? [94, 102] : null;
+    if (band){
+      out.waistKey = out.waist < band[0] ? "ok" : out.waist < band[1] ? "up" : "up2";
+      out.waistBand = band;
+    }
+  }
+  return out;
+}
+
+function healthHTML(){
+  const m = bodyMetrics();
+  if (!m) return "";
+  if (m.bmi == null && m.whtr == null) return "";
+
+  const chip = (k) => k === "ok" ? "good" : k === "low" ? "warn" : "warn";
+  const days = Math.round((Date.now() - m.at) / DAY);
+  const stale = days >= 7;
+
+  const bmiRow = m.bmi == null ? "" : `
+    <div class="hm">
+      <div class="hm-top"><span>${L("كتلة الجسم")}</span><b>${m.bmi}</b></div>
+      <span class="hm-tag ${chip(m.bmiBand.key)}">${m.bmiBand.name()}</span>
+      <p class="hm-note">${L("يُحسب من وزنك وطولك، ولا يفرّق بين العضل والدهن — فقد يظهر مرتفعاً لمن يتمرّن بالأوزان.")}</p>
+    </div>`;
+
+  const whtrRow = m.whtr == null ? "" : `
+    <div class="hm">
+      <div class="hm-top"><span>${L("الخصر إلى الطول")}</span><b>${m.whtr.toFixed(2)}</b></div>
+      <span class="hm-tag ${chip(m.whtrKey)}">${
+        m.whtrKey === "ok" ? L("ضمن النطاق المعتاد") : L("أعلى من النطاق المعتاد")}</span>
+      <p class="hm-note">${L("النطاق المعتاد أقل من ٠٫٥ — أي أن خصرك أقل من نصف طولك.")}</p>
+    </div>`;
+
+  const waistRow = m.waistKey == null ? "" : `
+    <div class="hm">
+      <div class="hm-top"><span>${L("محيط الخصر")}</span><b>${m.waist}<small> ${L("سم")}</small></b></div>
+      <span class="hm-tag ${chip(m.waistKey)}">${
+        m.waistKey === "ok" ? L("ضمن النطاق المعتاد") : L("أعلى من النطاق المعتاد")}</span>
+      <p class="hm-note">${L("النطاق المعتاد أقل من {0} سم حسب الجنس الذي اخترته.", m.waistBand[0])}</p>
+    </div>`;
+
+  return `
+    <div class="card chart">
+      <div class="chart-head">
+        <h3>${L("مؤشرات جسمك")}</h3>
+        <span>${days === 0 ? L("قياس اليوم") : L("قياس قبل {0} يوم", days)}</span>
+      </div>
+      ${bmiRow}${whtrRow}${waistRow}
+      ${stale ? `<p class="hm-stale">${L("مرّ أسبوع أو أكثر على آخر قياس — حدّث وزنك ليبقى المؤشر معبّراً عن حالتك.")}</p>`
+              : `<p class="hm-note">${L("حدّث قياساتك مرة كل أسبوع ليتابع المؤشر تغيّرك.")}</p>`}
+      <p class="hm-warn">${L("هذه مؤشرات عامة للمتابعة الشخصية، وليست تشخيصاً طبياً. لأي قرار يخص صحتك راجع مختصاً.")}</p>
+    </div>`;
+}
+
 function bodyHTML(){
   const all = (C.S.body || []).slice().sort((a,b) => a.at - b.at);
   if (!all.length){
@@ -382,17 +444,17 @@ function bodyHTML(){
 }
 
 function kpisHTML(){
-  const done = C.S.sessions.filter(s => s.completed !== false);
-  const m0 = new Date(); m0.setDate(1); m0.setHours(0,0,0,0);
-  const month = done.filter(s => s.at >= m0.getTime());
-  const weeks = weekBuckets(4);
-  const avg = (weeks.reduce((a,w) => a + w.count, 0) / 4).toFixed(1).replace(/\.0$/,"");
+  const month = monthSessions();
+  const weeks = monthWeeks();
+  const active = weeks.filter(w => w.from.getTime() <= Date.now()).length || 1;
+  const avg = (month.length / active).toFixed(1).replace(/\.0$/, "");
+  const mins = Math.round(month.reduce((a,s) => a + (s.secs||0), 0) / 60);
   return `
     <div class="stats">
       <div class="stat"><span class="stat-ic s-rose"><svg class="ic"><use href="#i-check"/></svg></span>
-        <strong>${month.length}</strong><small>${L("هذا الشهر")}</small></div>
+        <strong>${month.length}</strong><small>${L("تمرين هذا الشهر")}</small></div>
       <div class="stat"><span class="stat-ic s-gold"><svg class="ic"><use href="#i-timer"/></svg></span>
-        <strong>${Math.round(month.reduce((a,s)=>a+(s.secs||0),0)/60)}</strong><small>${L("دقيقة هذا الشهر")}</small></div>
+        <strong>${mins}</strong><small>${L("دقيقة هذا الشهر")}</small></div>
       <div class="stat"><span class="stat-ic s-plum"><svg class="ic"><use href="#i-trophy"/></svg></span>
         <strong>${avg}</strong><small>${L("معدل الأسبوع")}</small></div>
     </div>`;
@@ -404,14 +466,13 @@ function kpisHTML(){
 export function renderProgress(){
   const box = document.getElementById("progressBox");
   if (!box) return;
-  const done = C.S.sessions.filter(s => s.completed !== false);
+  const done = monthSessions();
   if (!done.length){
-    /* القادم يعتمد على جدولك لا على سجلّك — فيظهر من أول يوم */
-    box.innerHTML = upcomingHTML() + planMapHTML()
-      + `<p class="empty">${L("خلّص أول تمرين ويبدأ التحليل يبني نفسه.")}</p>`
-      + bodyHTML() + badgesHTML();
+    box.innerHTML = `<p class="empty">${L("ما سجّلت تمريناً هذا الشهر بعد — أول تمرين يبدأ العدّاد.")}</p>`
+      + bodyHTML() + healthHTML() + badgesHTML();
   } else {
-    box.innerHTML = kpisHTML() + upcomingHTML() + planMapHTML() + bodyHTML() + liftsHTML() + plansHTML() + badgesHTML();
+    box.innerHTML = kpisHTML() + columnsHTML() + bodyHTML() + healthHTML()
+                  + liftsHTML() + plansHTML() + badgesHTML();
   }
   wireTips(box);
   const rm = document.getElementById("btnRM");
