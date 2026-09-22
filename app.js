@@ -7,7 +7,7 @@
 import { initSocial, socialBoot, socialTeardown, socialAfterWorkout,
          renderClub, refreshClub, memberId,
          publishMyPlan, unpublishMyPlan, syncProfile, promptSheet } from "./social.js";
-import { initProgress, renderProgress, badgeCount } from "./progress.js";
+import { initProgress, renderProgress, badgeCount, upcomingHTML } from "./progress.js";
 import { L, LOC, SPEECH, lang, setLang, translateStatic } from "./i18n.js";
 import { shareCard } from "./share.js";
 import { initPush, renderPush, wirePush } from "./push.js";
@@ -60,8 +60,8 @@ const itemVolume = it => isReps(it)
 const DEFAULT_SEQ = ["N","P","N","S","N","B","N","P","N","Q","N","S","N","B","N","P","N","Q","N","B"];
 function defaultPlan(){
   return {
-    id: "abdulelah-default",
-    name: L("جدول عبدالاله الرياضي"),
+    id: "starter-plan",
+    name: L("جدول البداية"),
     target: 25, repeat: 1, warm: 180, cool: 120,
     items: DEFAULT_SEQ.map(k => {
       const e = byKey(k);
@@ -83,6 +83,8 @@ const S = {
   freeze: { credits: 0, used: {}, earnedUpto: 0 },  // تجميد السلسلة
   week: ["","","","","","",""],                    // خطة الأسبوع: "" بدون · "rest" راحة · معرّف جدول
   body: [],                                        // قياسات الجسم
+  bodyInfo: { height: 0, sex: "" },                // الطول والجنس — ثابتان
+  mine: [],                                        // تمارين حفظها المستخدم لتكرارها
   about: ""                                        // نبذة قصيرة يشوفها أصدقاؤك
 };
 
@@ -166,7 +168,7 @@ function buildSegments(p){
 /* ============================================================
    STORAGE — local always; cloud when signed in
    ============================================================ */
-const LK = { plans:"hejaz.plans", sessions:"hejaz.sessions", mode:"hejaz.mode", freeze:"hejaz.freeze", week:"hejaz.week", body:"hejaz.body", me:"hejaz.me" };
+const LK = { plans:"hejaz.plans", sessions:"hejaz.sessions", mode:"hejaz.mode", freeze:"hejaz.freeze", week:"hejaz.week", body:"hejaz.body", me:"hejaz.me", bodyInfo:"hejaz.bodyinfo", mine:"hejaz.mine" };
 
 function lsGet(k, fb){ try { const r = localStorage.getItem(k); return r ? JSON.parse(r) : fb; } catch(e){ return fb; } }
 function lsSet(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
@@ -225,6 +227,27 @@ async function loadAll(){
       if (me.photo) S.user.photo = me.photo;
       S.about = String(me.about || "").slice(0, ABOUT_MAX);
     }
+  }
+
+  /* تماريني المحفوظة */
+  S.mine = lsGet(LK.mine, []);
+  if (!Array.isArray(S.mine)) S.mine = [];
+  if (S.mode === "cloud" && S.fb){
+    const { db, m } = S.fb;
+    try {
+      const snap = await m.getDoc(m.doc(db, "users", S.user.uid, "meta", "mine"));
+      if (snap.exists() && Array.isArray(snap.data().list)) S.mine = snap.data().list;
+    } catch(err){ console.error("mine", err); }
+  }
+
+  /* الطول والجنس */
+  S.bodyInfo = lsGet(LK.bodyInfo, { height:0, sex:"" });
+  if (S.mode === "cloud" && S.fb){
+    const { db, m } = S.fb;
+    try {
+      const snap = await m.getDoc(m.doc(db, "users", S.user.uid, "meta", "bodyInfo"));
+      if (snap.exists()) S.bodyInfo = { height:0, sex:"", ...snap.data() };
+    } catch(err){ console.error("bodyInfo", err); }
   }
 
   /* قياسات الجسم */
@@ -572,6 +595,35 @@ function renderMeSheet(){
 }
 
 /* ---------------- قياسات الجسم ---------------- */
+const MINE_MAX = 12;
+async function saveMine(){
+  S.mine = S.mine.slice(0, MINE_MAX);
+  lsSet(LK.mine, S.mine);
+  if (S.mode === "cloud" && S.fb){
+    const { db, m } = S.fb;
+    try { await m.setDoc(m.doc(db, "users", S.user.uid, "meta", "mine"), { list: S.mine }); }
+    catch(err){ console.error("saveMine", err); }
+  }
+}
+
+/* يحفظ تمريناً في قائمة التكرار السريع — الأحدث أولاً بلا تكرار */
+async function rememberExercise(name, mins){
+  const n = String(name || "").trim().slice(0, 40);
+  if (!n) return;
+  S.mine = [{ name:n, mins: mins > 0 ? mins : 0 },
+            ...S.mine.filter(x => x.name !== n)].slice(0, MINE_MAX);
+  await saveMine();
+}
+
+async function saveBodyInfo(){
+  lsSet(LK.bodyInfo, S.bodyInfo);
+  if (S.mode === "cloud" && S.fb){
+    const { db, m } = S.fb;
+    try { await m.setDoc(m.doc(db, "users", S.user.uid, "meta", "bodyInfo"), S.bodyInfo); }
+    catch(err){ console.error("saveBodyInfo", err); }
+  }
+}
+
 async function saveBody(entry){
   S.body.unshift(entry);
   S.body.sort((a,b) => b.at - a.at);
@@ -598,6 +650,8 @@ async function delBody(id){
 }
 function openBody(){
   const last = S.body[0] || {};
+  $("bdH").value   = (S.bodyInfo && S.bodyInfo.height) || "";
+  $("bdSex").value = (S.bodyInfo && S.bodyInfo.sex) || "";
   $("bdW").value = last.weight || "";
   $("bdWaist").value = last.waist || "";
   $("bdChest").value = last.chest || "";
@@ -613,6 +667,12 @@ async function submitBody(){
     chest:  num($("bdChest").value), arm: num($("bdArm").value)
   };
   if (!e.weight && !e.waist && !e.chest && !e.arm){ toast(L("اكتب قياساً واحداً على الأقل")); return; }
+  /* الطول والجنس ثابتان — يُحفظان مرة لا مع كل قياس */
+  const hh = num($("bdH").value), sx = $("bdSex").value;
+  if (hh !== (S.bodyInfo.height || 0) || sx !== (S.bodyInfo.sex || "")){
+    S.bodyInfo = { height: hh, sex: sx === "m" || sx === "f" ? sx : "" };
+    await saveBodyInfo();
+  }
   $("bodySheet").hidden = true;
   await saveBody(e);
   renderProgress();
@@ -628,6 +688,12 @@ function todaySlot(){
 }
 
 /* يغطّي يوماً واحداً فائتاً بين يومي تدريب — يوم راحة بدون ما تنكسر السلسلة */
+/* أيام الراحة المحدّدة في خطة الأسبوع — تعبر السلسلة ولا تكسرها */
+const REST_MAX = 4;                                   // حد أقصى ٤ أيام راحة أسبوعياً
+const restWeekdays = () => (S.week || [])
+  .map((v, i) => v === "rest" ? i : -1).filter(i => i >= 0);
+const isRestDay = d => restWeekdays().includes(d.getDay());
+
 function applyFreezes(){
   const days = trainedDays(), f = S.freeze;
   const today = new Date(); today.setHours(0,0,0,0);
@@ -637,12 +703,14 @@ function applyFreezes(){
 
   for (let guard = 0; guard < 400; guard++){
     const k = dayKey(d);
-    if (days.has(k) || f.used[k]){ d.setDate(d.getDate() - 1); continue; }
+    if (days.has(k) || f.used[k] || isRestDay(d)){ d.setDate(d.getDate() - 1); continue; }
 
     const prevK = dayKey(new Date(d.getTime() - 86400000));
     const nextK = dayKey(new Date(d.getTime() + 86400000));
-    const alive = days.has(prevK) || f.used[prevK];
-    const after = days.has(nextK) || f.used[nextK] || nextK === todayK;
+    const prevD = new Date(d.getTime() - 86400000);
+    const nextD = new Date(d.getTime() + 86400000);
+    const alive = days.has(prevK) || f.used[prevK] || isRestDay(prevD);
+    const after = days.has(nextK) || f.used[nextK] || isRestDay(nextD) || nextK === todayK;
 
     if (f.credits > 0 && alive && after){
       f.credits--; f.used[k] = true; used++;
@@ -653,16 +721,28 @@ function applyFreezes(){
   return used;
 }
 
-/* تكسب تجميداً عن كل ٧ أيام متتالية، بحد أقصى ٣ */
-function awardFreezes(streak){
+/* تكسب تجميداً عن كل يوم راحة يمرّ، بحد أقصى ٣ أرصدة */
+const FREEZE_CAP = 3;
+function awardFreezes(){
   const f = S.freeze;
-  const milestone = Math.floor(streak / 7);
-  if (milestone > (f.earnedUpto || 0)){
-    const gained = Math.min(3 - f.credits, milestone - f.earnedUpto);
-    f.earnedUpto = milestone;
-    if (gained > 0){ f.credits += gained; return gained; }
+  f.restAwarded = f.restAwarded || {};
+  if (!restWeekdays().length) return 0;
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  let gained = 0;
+  /* أسبوع للخلف فقط: كل يوم راحة يُمنح مرة، ولا نمنح بأثر رجعي
+     عن أيام سبقت اختياره للراحة */
+  for (let i = 1; i <= 7 && f.credits < FREEZE_CAP; i++){
+    const d = new Date(today); d.setDate(d.getDate() - i);
+    const k = dayKey(d);
+    if (!isRestDay(d) || f.restAwarded[k]) continue;
+    f.restAwarded[k] = true;
+    f.credits++; gained++;
   }
-  return 0;
+  /* لا نُراكم المفاتيح بلا نهاية */
+  const keep = Object.keys(f.restAwarded).sort().slice(-60);
+  f.restAwarded = Object.fromEntries(keep.map(k => [k, true]));
+  return gained;
 }
 
 function streakInfo(){
@@ -671,10 +751,19 @@ function streakInfo(){
   const all = new Set([...days, ...frozen]);
   const today = new Date(); today.setHours(0,0,0,0);
 
-  let cur = 0;
+  /* يوم الراحة المحدّد يُعدّ يوماً في السلسلة — قرار المستخدم لا انقطاع */
+  const covered = d => all.has(dayKey(d)) || isRestDay(d);
+
+  let cur = 0, trained = 0;
   const probe = new Date(today);
-  if (!all.has(dayKey(probe))) probe.setDate(probe.getDate() - 1);   // أمس يبقيها حيّة
-  while (all.has(dayKey(probe))){ cur++; probe.setDate(probe.getDate() - 1); }
+  if (!covered(probe)) probe.setDate(probe.getDate() - 1);           // أمس يبقيها حيّة
+  while (covered(probe)){
+    cur++;
+    if (days.has(dayKey(probe))) trained++;
+    probe.setDate(probe.getDate() - 1);
+  }
+  /* أيام راحة وحدها ليست سلسلة — لازم تمرين واحد على الأقل */
+  if (!trained) cur = 0;
 
   let best = 0, run = 0, prev = null;
   [...all].sort().forEach(k => {
@@ -688,7 +777,7 @@ function streakInfo(){
 /* تُستدعى عند الإقلاع وبعد كل تمرين */
 async function refreshStreak(){
   const usedNow = applyFreezes();
-  const gained = awardFreezes(streakInfo().current);
+  const gained = awardFreezes();
   if (usedNow || gained) await saveFreeze();
   if (usedNow) toast(usedNow === 1 ? L("استخدمنا تجميداً — سلسلتك محفوظة ❄️")
                                    : L("استخدمنا {0} تجميدات — سلسلتك محفوظة ❄️", usedNow));
@@ -762,7 +851,8 @@ function renderHome(){
   $("week").innerHTML = h;
   $("freezeChip").innerHTML = S.freeze.credits
     ? `❄️ ${S.freeze.credits} ${S.freeze.credits === 1 ? L("تجميد") : L("تجميدات")}`
-    : L("❄️ تكسب تجميداً كل ٧ أيام");
+    : restWeekdays().length ? L("❄️ تكسب تجميداً كل يوم راحة")
+                           : L("❄️ حدد يوم راحة في خطة أسبوعك");
 
   const slot = todaySlot();
   const p = slot.plan;
@@ -843,13 +933,21 @@ function renderWeekPlan(){
   $("wpNote").textContent = set
     ? L("{0} من 7 أيام محددة", set)
     : L("اضغط أي يوم وحدد جدوله");
+
+  const rest = restWeekdays().length;
+  $("wpSoon").textContent = rest
+    ? (rest === 1 ? L("يوم راحة واحد") : L("{0} أيام راحة", rest))
+    : "";
+  const up = $("wpUpcoming");
+  if (up) up.innerHTML = upcomingHTML();
 }
 
 async function editWeekDay(i){
   const cur = S.week[i] || "";
   const opts = [
     { label: L("بدون تحديد"), value: "", on: cur === "" },
-    { label: L("يوم راحة"),   value: "rest", on: cur === "rest" },
+    { label: L("يوم راحة"),   value: "rest", on: cur === "rest",
+      sub: L("يُعدّ في السلسلة ويكسبك تجميداً") },
     ...S.plans.map(p => ({
       label: L(p.name), value: p.id, on: cur === p.id,
       sub: L("المدة {0} · {1} جولة", mmss(planSeconds(p)), planRounds(p))
@@ -857,6 +955,10 @@ async function editWeekDay(i){
   ];
   const v = await pickOne(L(DAY_LONG[i]), opts);
   if (v === null) return;
+  if (v === "rest" && cur !== "rest" && restWeekdays().length >= REST_MAX){
+    toast(L("أقصى شيء {0} أيام راحة في الأسبوع", REST_MAX));
+    return;
+  }
   S.week[i] = v;
   await saveWeek();
   renderWeekPlan();
@@ -1542,6 +1644,30 @@ function openManual(sess){
     ? L("عدّل المدة أو التاريخ — التغيير يؤثر على عدّاد الأيام المتتالية.")
     : L("تمرين تمّ خارج التطبيق — يدخل في السجل وفي عدّاد الأيام المتتالية.");
   $("mnSave").querySelector("span").textContent = mnEdit ? L("احفظ التعديل") : L("احفظ التمرين");
+  /* تماريني المحفوظة — لمسة واحدة تملأ الاسم والمدة */
+  const mineBox = $("mnMine"), mineLab = $("mnMineLabel");
+  const hasMine = S.mine.length > 0 && !mnEdit;
+  mineBox.hidden = mineLab.hidden = !hasMine;
+  if (hasMine){
+    mineBox.innerHTML = "";
+    S.mine.forEach(x => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "chip";
+      b.textContent = x.mins ? `${x.name} · ${x.mins}${L("د")}` : x.name;
+      b.onclick = () => {
+        $("mnName").value = x.name;
+        if (x.mins) $("mnMins").value = x.mins;
+        $("mnKeep").checked = false;
+        mineBox.querySelectorAll(".chip").forEach(c => c.classList.remove("on"));
+        $("mnKinds").querySelectorAll(".chip").forEach(c => c.classList.remove("on"));
+        b.classList.add("on");
+      };
+      mineBox.appendChild(b);
+    });
+  }
+  $("mnKeep").checked = false;
+  $("mnKeepBox").hidden = !!mnEdit;
+
   $("mnKinds").innerHTML = MN_KINDS.map(k =>
     `<button type="button" class="chip">${L(k)}</button>`).join("");
   $("mnKinds").querySelectorAll(".chip").forEach((b, i) => {
@@ -1612,6 +1738,8 @@ $("mnSave").onclick = async () => {
     mnEdit = null;
     return;
   }
+
+  if (!plan && $("mnKeep").checked) await rememberExercise(name, mins);
 
   const rounds = plan ? planRounds(plan) : 1;
   const sess = {
