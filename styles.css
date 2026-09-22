@@ -704,7 +704,40 @@ body.is-prep .run-clock{color:var(--soft)}
   color:var(--soft);text-align:center}
 .fwd-row>.hc{flex:1;min-width:0;height:17px;aspect-ratio:auto;border-radius:5px}
 
+/* ---------- قائمة منسدلة: تمارين مقترحة ---------- */
+.drop{margin-top:14px}
+.drop>summary{display:flex;align-items:center;gap:9px;cursor:pointer;list-style:none;
+  padding:4px 0;min-height:44px}
+.drop>summary::-webkit-details-marker{display:none}
+.drop>summary h3{margin:0}
+.drop-ar{width:10px;height:10px;flex:0 0 auto;border-inline-end:2.2px solid var(--soft);
+  border-block-end:2.2px solid var(--soft);transform:rotate(45deg);margin-block-start:-5px;
+  transition:transform .15s ease}
+.drop[open] .drop-ar{transform:rotate(-135deg);margin-block-start:2px}
+
+/* احفظه في تماريني */
+.mn-keep{margin-top:4px}
+
+/* ---------- مؤشرات الجسم ---------- */
+.bd-hint{margin:-4px 0 2px;font-size:12.5px;color:var(--soft);text-align:center}
+.hm{background:var(--panel-2);border:1.5px solid var(--rule);border-radius:15px;
+  padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.hm-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.hm-top span{font-size:15px;font-weight:600}
+.hm-top b{font-size:24px;font-weight:700;line-height:1}
+.hm-tag{align-self:flex-start;font-size:12.5px;font-weight:600;border-radius:99px;padding:4px 12px}
+.hm-tag.good{background:var(--tint-cool);color:var(--good);border:1.5px solid var(--rule-cool)}
+.hm-tag.warn{background:var(--tint-gold);color:var(--gold-ink);border:1.5px solid var(--ramp-2)}
+.hm-note{margin:0;font-size:12.5px;line-height:1.5;color:var(--soft)}
+.hm-stale{margin:0;font-size:13px;line-height:1.5;color:var(--gold-ink);
+  background:var(--tint-gold);border:1.5px solid var(--ramp-2);border-radius:13px;padding:9px 12px}
+.hm-warn{margin:0;font-size:12px;line-height:1.5;color:var(--soft);
+  padding-top:10px;border-top:1.5px solid var(--rule)}
+
 /* ---------- القادم ---------- */
+.wp-next{margin-top:16px;padding-top:14px;border-top:1.5px solid var(--rule)}
+.wp-next h3{font-size:16px;font-weight:600}
+#wpUpcoming .empty{margin:0}
 .upnext{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:9px}
 .up{display:flex;align-items:center;gap:12px;padding:11px 13px;border-radius:15px;
   background:var(--panel-2);border:1.5px solid var(--rule)}
