@@ -413,6 +413,11 @@ const EN = {
   "احفظه في تماريني لتكراره بسرعة": "Save it to my exercises for quick reuse",
   "د": "m",
   "جدول البداية": "Starter plan",
+
+  /* ---- استعادة الجلسة ---- */
+  "جارٍ استعادة جلستك…": "Restoring your session…",
+  "أهلاً {0} — جارٍ استعادة جلستك…": "Welcome back {0} — restoring your session…",
+  "الدخول بحساب آخر": "Sign in with another account",
   "قبل {0} يوم": "{0} d ago",
   "دقيقة": "min",
 
