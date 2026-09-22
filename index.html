@@ -12,6 +12,9 @@
 <meta name="apple-mobile-web-app-title" content="نادي الجبال">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+<link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -103,6 +106,15 @@
 
     <button class="btn btn-ghost" id="btnGuest">أكمل بدون حساب على هذا الجهاز</button>
     <p class="gate-note" id="gateNote"></p>
+  </div>
+
+  <!-- يظهر بدل أزرار الدخول لمن سبق أن سجّل — حتى لا يظن أنه مطالب بالدخول -->
+  <div class="gate-sheet gate-back" id="gateBack" hidden>
+    <img class="gate-mark" src="icon-192.png" alt="" width="64" height="64">
+    <h1>نادي الجبال</h1>
+    <p class="gate-tag" id="gateBackName">جارٍ استعادة جلستك…</p>
+    <div class="gate-bar"><i></i></div>
+    <button class="btn btn-ghost" id="btnBackSignIn" hidden>الدخول بحساب آخر</button>
   </div>
 </section>
 
