@@ -190,6 +190,8 @@
       <div class="card weekplan">
         <div class="head-row"><h3>خطة الأسبوع</h3><span class="count" id="wpNote"></span></div>
         <div class="wp-days" id="wpDays"></div>
+        <div class="head-row wp-next"><h3>القادم</h3><span class="count" id="wpSoon"></span></div>
+        <div id="wpUpcoming"></div>
       </div>
 
       <ul class="plan-list" id="planList"></ul>
@@ -268,12 +270,14 @@
       <ul class="build-list" id="buildList"></ul>
       <p class="empty" id="buildEmpty">الجدول فاضي. اختر تمريناً من الأسفل.</p>
 
-      <h3 class="sub-head">أضف تمريناً</h3>
-      <div class="pick-tabs" id="pickTabs">
-        <button data-pt="time" class="on">بالوقت</button>
-        <button data-pt="reps">بالأوزان</button>
-      </div>
-      <div class="picker" id="picker"></div>
+      <details class="drop" id="pickDrop">
+        <summary><h3 class="sub-head">تمارين مقترحة</h3><i class="drop-ar"></i></summary>
+        <div class="pick-tabs" id="pickTabs">
+          <button data-pt="time" class="on">بالوقت</button>
+          <button data-pt="reps">بالأوزان</button>
+        </div>
+        <div class="picker" id="picker"></div>
+      </details>
 
       <label class="field" style="margin-top:14px">
         <span>تمرين من عندك</span>
@@ -495,6 +499,17 @@
     <p class="sheet-name">قياس جديد</p>
     <p class="sheet-mail">سجّل وزنك ومقاساتك — اترك أي خانة فاضية إذا ما قستها.</p>
     <div class="rm-row">
+      <label class="field"><span>الطول (سم)</span>
+        <input type="number" id="bdH" min="90" max="250" step="0.5" inputmode="decimal"></label>
+      <label class="field"><span>الجنس</span>
+        <select id="bdSex">
+          <option value="">غير محدد</option>
+          <option value="m">ذكر</option>
+          <option value="f">أنثى</option>
+        </select></label>
+    </div>
+    <p class="bd-hint">الطول والجنس يُحفظان مرة واحدة ويُستعملان لحساب المؤشرات.</p>
+    <div class="rm-row">
       <label class="field"><span>الوزن (كجم)</span>
         <input type="number" id="bdW" min="20" max="400" step="0.1" inputmode="decimal"></label>
       <label class="field"><span>الخصر (سم)</span>
@@ -590,10 +605,15 @@
       <select id="mnPlan"></select></label>
 
     <div id="mnFreeBox">
+      <p class="sheet-label" id="mnMineLabel" hidden>تماريني</p>
+      <div class="chips" id="mnMine" hidden></div>
       <p class="sheet-label">النشاط</p>
       <div class="chips" id="mnKinds"></div>
       <label class="field"><span>اسم التمرين</span>
         <input type="text" id="mnName" placeholder="مثال: مشي" autocomplete="off"></label>
+      <label class="switch mn-keep" id="mnKeepBox">
+        <input type="checkbox" id="mnKeep"><span>احفظه في تماريني لتكراره بسرعة</span>
+      </label>
     </div>
 
     <div class="rm-row">
