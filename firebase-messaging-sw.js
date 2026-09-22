@@ -9,7 +9,11 @@ const HOME = "https://www.mountains-fit.online/";
    التخزين: «الشبكة أولاً» — التحديث يصل فوراً، والنسخة المخزّنة
    احتياط عند انقطاع الاتصال أو بطئه.
    ============================================================ */
-const CACHE = "hejaz-shell-v1";
+const CACHE = "hejaz-shell-v2";
+/* حزمة فايربيس تُنزَّل من gstatic في كل إقلاع بارد (~300KB).
+   محتواها ثابت لأن الرابط مثبّت على رقم إصدار، فنخزّنها ونخدمها
+   من التخزين مباشرة: أكبر توفير في زمن فتح التطبيق. */
+const VENDOR = /^https:\/\/www\.gstatic\.com\/firebasejs\/|^https:\/\/fonts\.gstatic\.com\//;
 const SLOW  = 3500;                       // ننتظر الشبكة هذا القدر ثم نرجع للمخزّن
 const SHELL = [
   "./", "./index.html", "./styles.css", "./app.js", "./ex.js", "./i18n.js",
@@ -34,7 +38,25 @@ self.addEventListener("fetch", event => {
   if (req.method !== "GET") return;
   let url;
   try { url = new URL(req.url); } catch(e){ return; }
-  if (url.origin !== self.location.origin) return;    // فايربيس والخطوط تمرّ كما هي
+  /* موارد خارجية ثابتة: من التخزين أولاً، وتُجلب مرة واحدة فقط */
+  if (VENDOR.test(req.url)){
+    event.respondWith((async () => {
+      const cache = await caches.open(CACHE);
+      const hit = await cache.match(req);
+      if (hit) return hit;
+      try {
+        const res = await fetch(req);
+        if (res && (res.ok || res.type === "opaque")) cache.put(req, res.clone()).catch(() => {});
+        return res;
+      } catch(err){
+        /* لا نبتلع الفشل: نرجع استجابة شبكة عادية حتى يتصرّف التطبيق
+           كما كان يتصرّف قبل وجود عامل الخدمة */
+        return Response.error();
+      }
+    })());
+    return;
+  }
+  if (url.origin !== self.location.origin) return;    // بقية الطلبات تمرّ كما هي
 
   event.respondWith((async () => {
     const cache = await caches.open(CACHE);
