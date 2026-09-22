@@ -96,6 +96,21 @@ use{pointer-events:none}
 .gate-tag{color:var(--soft);font-size:15.5px;margin:0 auto 10px;max-width:26ch;text-wrap:balance}
 .gate-note{font-size:13px;color:var(--soft);margin:4px 0 0;min-height:18px}
 
+/* شاشة استعادة الجلسة */
+.gate-back{flex:1 1 auto;justify-content:center;gap:14px;
+  padding-bottom:calc(52px + env(safe-area-inset-bottom))}
+.gate-back .gate-tag{margin-bottom:0}
+.gate-bar{width:150px;height:5px;margin:2px auto 0;border-radius:99px;
+  background:var(--rule);overflow:hidden}
+.gate-bar i{display:block;width:40%;height:100%;border-radius:99px;
+  background:var(--accent);animation:gateSlide 1.15s ease-in-out infinite}
+@keyframes gateSlide{
+  0%{transform:translateX(160%)} 100%{transform:translateX(-160%)}
+}
+@media (prefers-reduced-motion:reduce){
+  .gate-bar i{width:100%;animation:none;opacity:.5}
+}
+
 /* ---- الدخول بالبريد وكلمة السر ---- */
 .mail-form{display:flex;flex-direction:column;gap:12px;text-align:start;
   background:var(--panel);border-radius:var(--r-md);padding:16px;box-shadow:var(--shadow-s)}
