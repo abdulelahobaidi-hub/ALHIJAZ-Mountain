@@ -355,6 +355,64 @@ const EN = {
   "بعد ٨ أسابيع": "in 8 weeks",
   "أيام تدريبك المخطّطة: {0}": "Your planned training days: {0}",
   "ما فيه": "none",
+
+  /* ---- التقدّم الشهري ---- */
+  "{0} تمريناً هذا الشهر": "{0} workouts this month",
+  "تمرين هذا الشهر": "workouts this month",
+  "عدد التمارين لكل أسبوع خلال {0}": "Workouts per week during {0}",
+  "أسبوع {0}": "Week {0}",
+  "أول الشهر": "Start of month",
+  "آخر الشهر": "End of month",
+  "ما سجّلت تمريناً هذا الشهر بعد — أول تمرين يبدأ العدّاد.":
+    "No workouts logged this month yet — your first one starts the count.",
+  "ما رتّبت أسبوعك بعد — اضغط أي يوم فوق وحدد جدوله.":
+    "You haven't set up your week yet — tap any day above and pick its plan.",
+
+  /* ---- الراحة والتجميد ---- */
+  "يُعدّ في السلسلة ويكسبك تجميداً": "Counts in your streak and earns a freeze",
+  "❄️ تكسب تجميداً كل يوم راحة": "❄️ A freeze for every rest day",
+  "❄️ حدد يوم راحة في خطة أسبوعك": "❄️ Set a rest day in your week plan",
+  "أقصى شيء {0} أيام راحة في الأسبوع": "At most {0} rest days a week",
+  "يوم راحة واحد": "1 rest day",
+  "{0} أيام راحة": "{0} rest days",
+
+  /* ---- مؤشرات الجسم ---- */
+  "الطول (سم)": "Height (cm)",
+  "الجنس": "Sex",
+  "غير محدد": "Not set",
+  "ذكر": "Male",
+  "أنثى": "Female",
+  "الطول والجنس يُحفظان مرة واحدة ويُستعملان لحساب المؤشرات.":
+    "Height and sex are saved once and used to work out the indicators.",
+  "مؤشرات جسمك": "Your body indicators",
+  "كتلة الجسم": "Body mass index",
+  "الخصر إلى الطول": "Waist to height",
+  "محيط الخصر": "Waist",
+  "أقل من النطاق المعتاد": "Below the usual range",
+  "ضمن النطاق المعتاد": "Within the usual range",
+  "أعلى من النطاق المعتاد": "Above the usual range",
+  "أعلى بكثير من النطاق المعتاد": "Well above the usual range",
+  "يُحسب من وزنك وطولك، ولا يفرّق بين العضل والدهن — فقد يظهر مرتفعاً لمن يتمرّن بالأوزان.":
+    "Worked out from your weight and height; it doesn't tell muscle from fat, so it can read high for people who lift.",
+  "النطاق المعتاد أقل من ٠٫٥ — أي أن خصرك أقل من نصف طولك.":
+    "The usual range is below 0.5 — your waist under half your height.",
+  "النطاق المعتاد أقل من {0} سم حسب الجنس الذي اخترته.":
+    "The usual range is below {0} cm for the sex you selected.",
+  "قياس اليوم": "Measured today",
+  "قياس قبل {0} يوم": "Measured {0} d ago",
+  "مرّ أسبوع أو أكثر على آخر قياس — حدّث وزنك ليبقى المؤشر معبّراً عن حالتك.":
+    "It has been a week or more since your last measurement — update it to keep the indicator meaningful.",
+  "حدّث قياساتك مرة كل أسبوع ليتابع المؤشر تغيّرك.":
+    "Update your measurements once a week so the indicator tracks your change.",
+  "هذه مؤشرات عامة للمتابعة الشخصية، وليست تشخيصاً طبياً. لأي قرار يخص صحتك راجع مختصاً.":
+    "These are general indicators for personal tracking, not a medical diagnosis. For anything concerning your health, see a professional.",
+
+  /* ---- تماريني والمكتبة ---- */
+  "تمارين مقترحة": "Suggested exercises",
+  "تماريني": "My exercises",
+  "احفظه في تماريني لتكراره بسرعة": "Save it to my exercises for quick reuse",
+  "د": "m",
+  "جدول البداية": "Starter plan",
   "قبل {0} يوم": "{0} d ago",
   "دقيقة": "min",
 
