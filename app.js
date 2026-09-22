@@ -174,92 +174,62 @@ function lsGet(k, fb){ try { const r = localStorage.getItem(k); return r ? JSON.
 function lsSet(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
 
 async function loadAll(){
+  /* الافتراضي دائماً النسخة المحلية — ثم تغلبها السحابة إن وصلت */
+  S.plans    = lsGet(LK.plans, []);
+  S.sessions = lsGet(LK.sessions, []);
+  S.freeze   = lsGet(LK.freeze, { credits:0, used:{}, earnedUpto:0 });
+  S.week     = lsGet(LK.week, ["","","","","","",""]);
+  S.mine     = lsGet(LK.mine, []);
+  S.bodyInfo = lsGet(LK.bodyInfo, { height:0, sex:"" });
+  S.body     = lsGet(LK.body, []);
+  let me     = lsGet(LK.me, null);
+
   if (S.mode === "cloud" && S.fb){
     const { db, m } = S.fb;
     const u = S.user.uid;
-    try {
-      const ps = await m.getDocs(m.collection(db, "users", u, "plans"));
-      S.plans = ps.docs.map(d => ({ id:d.id, ...d.data() }));
-      const ss = await m.getDocs(m.query(m.collection(db, "users", u, "sessions"), m.orderBy("at","desc"), m.limit(200)));
-      S.sessions = ss.docs.map(d => ({ id:d.id, ...d.data() }));
-    } catch(err){
-      console.error(err);
-      toast(L("تعذّر تحميل بياناتك من السحابة"));
-      S.plans = lsGet(LK.plans, []); S.sessions = lsGet(LK.sessions, []);
-    }
-  } else {
-    S.plans = lsGet(LK.plans, []);
-    S.sessions = lsGet(LK.sessions, []);
-  }
-  /* تجميد السلسلة */
-  S.freeze = lsGet(LK.freeze, { credits:0, used:{}, earnedUpto:0 });
-  if (S.mode === "cloud" && S.fb){
-    const { db, m } = S.fb;
-    try {
-      const snap = await m.getDoc(m.doc(db, "users", S.user.uid, "meta", "freeze"));
-      if (snap.exists()) S.freeze = { credits:0, used:{}, earnedUpto:0, ...snap.data() };
-    } catch(err){ console.error("freeze", err); }
-  }
+    const meta = k => m.getDoc(m.doc(db, "users", u, "meta", k));
 
-  /* خطة الأسبوع */
-  S.week = lsGet(LK.week, ["","","","","","",""]);
-  if (!Array.isArray(S.week) || S.week.length !== 7) S.week = ["","","","","","",""];
-  if (S.mode === "cloud" && S.fb){
-    const { db, m } = S.fb;
-    try {
-      const snap = await m.getDoc(m.doc(db, "users", S.user.uid, "meta", "week"));
-      if (snap.exists() && Array.isArray(snap.data().days)) S.week = snap.data().days;
-    } catch(err){ console.error("week", err); }
+    /* ثماني قراءات كانت تنتظر بعضها بالدور — الآن تنطلق معاً،
+       فالانتظار يساوي أبطأها لا مجموعها. */
+    const [plans, sess, freeze, week, meDoc, mine, bodyInfo, body] =
+      await Promise.allSettled([
+        m.getDocs(m.collection(db, "users", u, "plans")),
+        m.getDocs(m.query(m.collection(db, "users", u, "sessions"),
+                          m.orderBy("at","desc"), m.limit(200))),
+        meta("freeze"), meta("week"), meta("me"), meta("mine"), meta("bodyInfo"),
+        m.getDocs(m.query(m.collection(db, "users", u, "body"),
+                          m.orderBy("at","desc"), m.limit(200)))
+      ]);
+
+    const ok = r => r.status === "fulfilled" ? r.value : null;
+    const doc = r => { const v = ok(r); return v && v.exists() ? v.data() : null; };
+
+    if (ok(plans)) S.plans   = ok(plans).docs.map(d => ({ id:d.id, ...d.data() }));
+    if (ok(sess))  S.sessions = ok(sess).docs.map(d => ({ id:d.id, ...d.data() }));
+    if (ok(body))  S.body    = ok(body).docs.map(d => ({ id:d.id, ...d.data() }));
+
+    const f = doc(freeze);   if (f) S.freeze = { credits:0, used:{}, earnedUpto:0, ...f };
+    const w = doc(week);     if (w && Array.isArray(w.days)) S.week = w.days;
+    const n = doc(mine);     if (n && Array.isArray(n.list)) S.mine = n.list;
+    const bi = doc(bodyInfo); if (bi) S.bodyInfo = { height:0, sex:"", ...bi };
+    const md = doc(meDoc);   if (md) me = md;
+
+    /* إن سقطت القراءتان الأساسيتان نخبر المستخدم — الباقي يكمل بالمحلي بصمت */
+    if (!ok(plans) || !ok(sess)){
+      console.error("loadAll", plans.reason || sess.reason);
+      toast(L("تعذّر تحميل بياناتك من السحابة"));
+    }
   }
 
   /* ملفك: الاسم والصورة والنبذة — يغلبان ما يجي من مزوّد الدخول */
-  {
-    let me = lsGet(LK.me, null);
-    if (S.mode === "cloud" && S.fb){
-      const { db, m } = S.fb;
-      try {
-        const snap = await m.getDoc(m.doc(db, "users", S.user.uid, "meta", "me"));
-        if (snap.exists()) me = snap.data();
-      } catch(err){ console.error("me", err); }
-    }
-    if (me){
-      if (me.name)  S.user.name  = String(me.name).slice(0, NAME_MAX);
-      if (me.photo) S.user.photo = me.photo;
-      S.about = String(me.about || "").slice(0, ABOUT_MAX);
-    }
+  if (me){
+    if (me.name)  S.user.name  = String(me.name).slice(0, NAME_MAX);
+    if (me.photo) S.user.photo = me.photo;
+    S.about = String(me.about || "").slice(0, ABOUT_MAX);
   }
 
-  /* تماريني المحفوظة */
-  S.mine = lsGet(LK.mine, []);
+  if (!Array.isArray(S.week) || S.week.length !== 7) S.week = ["","","","","","",""];
   if (!Array.isArray(S.mine)) S.mine = [];
-  if (S.mode === "cloud" && S.fb){
-    const { db, m } = S.fb;
-    try {
-      const snap = await m.getDoc(m.doc(db, "users", S.user.uid, "meta", "mine"));
-      if (snap.exists() && Array.isArray(snap.data().list)) S.mine = snap.data().list;
-    } catch(err){ console.error("mine", err); }
-  }
-
-  /* الطول والجنس */
-  S.bodyInfo = lsGet(LK.bodyInfo, { height:0, sex:"" });
-  if (S.mode === "cloud" && S.fb){
-    const { db, m } = S.fb;
-    try {
-      const snap = await m.getDoc(m.doc(db, "users", S.user.uid, "meta", "bodyInfo"));
-      if (snap.exists()) S.bodyInfo = { height:0, sex:"", ...snap.data() };
-    } catch(err){ console.error("bodyInfo", err); }
-  }
-
-  /* قياسات الجسم */
-  S.body = lsGet(LK.body, []);
-  if (S.mode === "cloud" && S.fb){
-    const { db, m } = S.fb;
-    try {
-      const snap = await m.getDocs(m.query(m.collection(db, "users", S.user.uid, "body"),
-                                           m.orderBy("at","desc"), m.limit(200)));
-      S.body = snap.docs.map(d => ({ id:d.id, ...d.data() }));
-    } catch(err){ console.error("body", err); }
-  }
   S.body.sort((a,b) => b.at - a.at);
 
   if (!S.plans.length){
@@ -458,6 +428,12 @@ async function watchAuth(){
   try {
     const { auth, authM } = await initFirebase();
     authM.getRedirectResult(auth).catch(() => {});
+    /* نحدد مكان حفظ الجلسة صراحةً بدل الاعتماد على الافتراضي:
+       IndexedDB يبقى بعد إغلاق التطبيق وإعادة تشغيل الجهاز. */
+    try { await authM.setPersistence(auth, authM.indexedDBLocalPersistence); }
+    catch(e){
+      try { await authM.setPersistence(auth, authM.browserLocalPersistence); } catch(e2){}
+    }
     authM.onAuthStateChanged(auth, async (u) => {
       if (u){
         S.mode = "cloud";
@@ -465,16 +441,55 @@ async function watchAuth(){
         pendingName = "";
         lsSet(LK.mode, "cloud");
         await enterApp();
-      } else if (S.mode === "cloud"){
-        S.mode = null; S.user = null;
-        lsSet(LK.mode, "");
-        $("app").hidden = true; $("gate").hidden = false;
+      } else {
+        /* لا جلسة: سواء خرج المستخدم أو انتهى الرمز — نرجع للأزرار.
+           بدون هذا تبقى شاشة الاستعادة معلّقة إلى الأبد. */
+        if (S.mode === "cloud"){
+          S.mode = null; S.user = null;
+          $("app").hidden = true; $("gate").hidden = false;
+        }
+        if (lsGet(LK.mode, "") === "cloud") lsSet(LK.mode, "");
+        if (S.mode !== "local") showSignIn();
       }
     });
   } catch(err){
     console.error(err);
+    showSignIn();
     $("gateNote").textContent = L("تعذّر تحميل Firebase — تأكد من الاتصال بالإنترنت.");
   }
+}
+
+/* ---------------- شاشة استعادة الجلسة ---------------- */
+let restoreTimer = null;
+const mainSheet = () => document.querySelector("#gate > .gate-sheet:not(.gate-back)");
+
+function showRestoring(){
+  const me = lsGet(LK.me, null);
+  $("gateBackName").textContent = me && me.name
+    ? L("أهلاً {0} — جارٍ استعادة جلستك…", me.name)
+    : L("جارٍ استعادة جلستك…");
+  const ms = mainSheet(); if (ms) ms.hidden = true;
+  $("gateBack").hidden = false;
+  /* إن تأخّر الاتصال نعطيه مخرجاً بدل انتظار بلا نهاية */
+  clearTimeout(restoreTimer);
+  restoreTimer = setTimeout(() => { $("btnBackSignIn").hidden = false; }, 6000);
+}
+
+function showSignIn(){
+  clearTimeout(restoreTimer);
+  $("gateBack").hidden = true;
+  $("btnBackSignIn").hidden = true;
+  const ms = mainSheet(); if (ms) ms.hidden = false;
+}
+
+/* المتصفح قد يمسح التخزين تحت الضغط، وفيه رمز دخولك.
+   هذا يطلب منه استثناء التطبيق — يُمنح عادةً بعد تثبيته على الشاشة. */
+async function askPersistentStorage(){
+  try {
+    if (!navigator.storage || !navigator.storage.persist) return;
+    if (await navigator.storage.persisted()) return;
+    await navigator.storage.persist();
+  } catch(e){ /* غير مدعوم — لا ضرر */ }
 }
 
 async function goGuest(){
@@ -1946,9 +1961,14 @@ const OPTS = lsGet("hejaz.opts", { sound:true, voice:true });
 });
 
 (async function boot(){
+  askPersistentStorage();
+  const mode = lsGet(LK.mode, "");
+  /* من سبق أن سجّل يرى «جارٍ استعادة جلستك» لا أزرار الدخول */
+  if (mode === "cloud") showRestoring();
+  $("btnBackSignIn").onclick = () => showSignIn();
   if (!hasConfig()) $("btnGoogle").disabled = false;   // still clickable, shows a helpful note
   watchAuth();
-  if (lsGet(LK.mode, "") === "local") await goGuest();
+  if (mode === "local") await goGuest();
 })();
 
 /* ============================================================
