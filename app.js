@@ -337,18 +337,32 @@ async function initFirebase(){
   return S.fb;
 }
 
-async function signInGoogle(){
+/* أبل لا ترسل الاسم إلا في أول تفويض على الإطلاق. إن وصلنا فاضياً
+   تركنا الاسم الافتراضي، والمستخدم يعدّله من ملفه. */
+async function adoptProviderName(cred){
+  try {
+    const u = cred && cred.user; if (!u) return;
+    if (u.displayName) return;
+    const t = cred._tokenResponse || {};
+    const nm = [t.firstName, t.lastName].filter(Boolean).join(" ").trim();
+    if (!nm) return;
+    const { authM } = await initFirebase();
+    await authM.updateProfile(u, { displayName: nm.slice(0, NAME_MAX) });
+  } catch(err){ console.error("adoptProviderName", err); }
+}
+
+/* مسار واحد لمزوّدي OAuth: نافذة، وإن تعذّرت فتحويل */
+async function signInProvider(provider, note){
   if (!hasConfig()){
     $("gateNote").textContent = L("إعدادات Firebase غير مكتملة — افتح ملف firebase-config.js والصق بيانات مشروعك.");
     return;
   }
-  $("gateNote").textContent = L("جارٍ فتح نافذة جوجل…");
+  $("gateNote").textContent = note;
   try {
     const { auth, authM } = await initFirebase();
-    const provider = new authM.GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: "select_account" });
     try {
-      await authM.signInWithPopup(auth, provider);
+      const cred = await authM.signInWithPopup(auth, provider);
+      await adoptProviderName(cred);
     } catch(err){
       if (["auth/popup-blocked","auth/popup-closed-by-user","auth/cancelled-popup-request","auth/operation-not-supported-in-this-environment"].includes(err.code)){
         await authM.signInWithRedirect(auth, provider);
@@ -358,6 +372,29 @@ async function signInGoogle(){
     console.error(err);
     $("gateNote").textContent = L("تعذّر تسجيل الدخول: ") + (err.code || err.message);
   }
+}
+
+async function signInApple(){
+  if (!hasConfig()){
+    $("gateNote").textContent = L("إعدادات Firebase غير مكتملة — افتح ملف firebase-config.js والصق بيانات مشروعك.");
+    return;
+  }
+  const { authM } = await initFirebase();
+  const provider = new authM.OAuthProvider("apple.com");
+  provider.addScope("email");
+  provider.addScope("name");
+  await signInProvider(provider, L("جارٍ فتح نافذة أبل…"));
+}
+
+async function signInGoogle(){
+  if (!hasConfig()){
+    $("gateNote").textContent = L("إعدادات Firebase غير مكتملة — افتح ملف firebase-config.js والصق بيانات مشروعك.");
+    return;
+  }
+  const { authM } = await initFirebase();
+  const provider = new authM.GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: "select_account" });
+  await signInProvider(provider, L("جارٍ فتح نافذة جوجل…"));
 }
 
 /* ---------------- الدخول بالبريد وكلمة السر ---------------- */
@@ -444,7 +481,9 @@ async function watchAuth(){
   }
   try {
     const { auth, authM } = await initFirebase();
-    authM.getRedirectResult(auth).catch(() => {});
+    authM.getRedirectResult(auth)
+      .then(cred => { if (cred) return adoptProviderName(cred); })
+      .catch(() => {});
     /* نحدد مكان حفظ الجلسة صراحةً بدل الاعتماد على الافتراضي:
        IndexedDB يبقى بعد إغلاق التطبيق وإعادة تشغيل الجهاز. */
     try { await authM.setPersistence(auth, authM.indexedDBLocalPersistence); }
@@ -1216,7 +1255,10 @@ function renderRun(){
   const left = seg.dur - r.elapsed;
   const lifting = !r.finished && seg.kind === "reps";
 
-  $("runClock").textContent = r.finished ? L("تم") : lifting ? String(seg.reps) : mmss(left);
+  $("runClock").textContent = r.finished ? L("🎯 إستمر إنجاز عظيم")
+                            : lifting ? String(seg.reps) : mmss(left);
+  /* الساعة رقم قصير، والختام جملة — فلكل منهما مقاسه */
+  $("runClock").classList.toggle("done", !!r.finished);
   $("runPhase").textContent = r.finished ? L("اكتمل التمرين")
     : lifting ? L("{0} · المجموعة {1} من {2}", seg.phase, seg.set, seg.sets) : seg.phase;
   $("runMove").textContent  = r.finished ? L(r.plan.name) : seg.name;
@@ -1489,6 +1531,7 @@ function renderLog(){
    WIRING
    ============================================================ */
 $("btnGoogle").onclick = signInGoogle;
+$("btnApple").onclick  = signInApple;
 $("btnGuest").onclick  = goGuest;
 
 /* الدخول بالبريد */
@@ -1995,7 +2038,7 @@ const OPTS = lsGet("hejaz.opts", { sound:true, voice:true });
   /* من سبق أن سجّل يرى «جارٍ استعادة جلستك» لا أزرار الدخول */
   if (mode === "cloud") showRestoring();
   $("btnBackSignIn").onclick = () => showSignIn();
-  if (!hasConfig()) $("btnGoogle").disabled = false;   // still clickable, shows a helpful note
+  if (!hasConfig()){ $("btnGoogle").disabled = false; $("btnApple").disabled = false; }  // يبقيان قابلين للضغط ليظهر التنبيه
   watchAuth();
   if (mode === "local") await goGuest();
 })();

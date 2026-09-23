@@ -264,6 +264,9 @@ const EN = {
 
   /* ---- شاشة التمرين ---- */
   "تم": "Done",
+  "🎯 إستمر إنجاز عظيم": "🎯 Keep going, great work",
+  "تسجيل الدخول بحساب أبل": "Sign in with Apple",
+  "جارٍ فتح نافذة أبل…": "Opening Apple sign-in…",
   "اكتمل التمرين": "Workout complete",
   "{0} · المجموعة {1} من {2}": "{0} · Set {1} of {2}",
   "انحفظ في سجلك": "Saved to your log",
