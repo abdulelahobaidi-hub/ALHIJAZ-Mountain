@@ -168,12 +168,29 @@ function buildSegments(p){
 /* ============================================================
    STORAGE — local always; cloud when signed in
    ============================================================ */
-const LK = { plans:"hejaz.plans", sessions:"hejaz.sessions", mode:"hejaz.mode", freeze:"hejaz.freeze", week:"hejaz.week", body:"hejaz.body", me:"hejaz.me", bodyInfo:"hejaz.bodyinfo", mine:"hejaz.mine" };
+const LK = { plans:"hejaz.plans", sessions:"hejaz.sessions", mode:"hejaz.mode", freeze:"hejaz.freeze", week:"hejaz.week", body:"hejaz.body", me:"hejaz.me", bodyInfo:"hejaz.bodyinfo", mine:"hejaz.mine", owner:"hejaz.owner" };
+
+/* مفاتيح بيانات المستخدم — تُمسح عند الخروج أو عند دخول حساب آخر.
+   السِمة واللغة والخيارات تفضيلات جهاز، فتبقى. */
+const DATA_KEYS = [LK.plans, LK.sessions, LK.freeze, LK.week, LK.body,
+                   LK.me, LK.bodyInfo, LK.mine, LK.owner];
+function wipeLocalData(){
+  DATA_KEYS.forEach(k => { try { localStorage.removeItem(k); } catch(e){} });
+}
 
 function lsGet(k, fb){ try { const r = localStorage.getItem(k); return r ? JSON.parse(r) : fb; } catch(e){ return fb; } }
 function lsSet(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
 
 async function loadAll(){
+  /* النسخة المحلية مختومة بصاحبها. لو دخل حساب غير الذي كتبها
+     مسحناها قبل أي قراءة، فلا يرث أحدٌ بيانات من سبقه على الجهاز. */
+  const owner = lsGet(LK.owner, null);
+  const who   = S.mode === "cloud" ? S.user.uid : "local";
+  /* owner ناقص = نسخة كُتبت قبل هذا التحديث، فهي لصاحب الجهاز الحالي:
+     نتبنّاها ولا نمسحها، وإلا ضاعت بيانات مستخدمي الوضع المحلي. */
+  if (owner !== null && owner !== who) wipeLocalData();
+  lsSet(LK.owner, who);
+
   /* الافتراضي دائماً النسخة المحلية — ثم تغلبها السحابة إن وصلت */
   S.plans    = lsGet(LK.plans, []);
   S.sessions = lsGet(LK.sessions, []);
@@ -502,6 +519,7 @@ async function goGuest(){
 async function signOutNow(){
   $("sheet").hidden = true;
   lsSet(LK.mode, "");
+  wipeLocalData();          /* لا نترك بيانات حساب على جهاز قد يستعمله غيره */
   if (S.mode === "cloud" && S.fb){
     try { await S.fb.authM.signOut(S.fb.auth); } catch(e){}
   }
