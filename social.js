@@ -55,15 +55,17 @@ function since(ms){
    فيبقى معلّقاً إذا انقطع. نحسبها من أيامه المنشورة حتى تنكسر في وقتها. */
 function liveStreak(p){
   if (!p) return 0;
-  const all = new Set([...(p.days || []), ...(p.frozen || [])]);
-  if (!all.size) return 0;
-  const probe = new Date(); probe.setHours(0,0,0,0);
-  if (!all.has(C.dayKey(probe))) probe.setDate(probe.getDate() - 1);   // أمس يبقيها حيّة
-  let n = 0;
-  while (all.has(C.dayKey(probe))){ n++; probe.setDate(probe.getDate() - 1); }
-  /* الأيام المنشورة محدودة بـ٢١ يوماً — إن استهلكناها كلها فالرقم المخزّن أدق */
-  if (n >= all.size) n = Math.max(n, p.streak || 0);
-  return n;
+  const days = p.days || [], frozen = p.frozen || [];
+  if (!days.length) return 0;
+  /* نفس دالة ملفي بالضبط — لا نسخة ثانية من القاعدة تنحرف عنها */
+  const { current, oldest } = C.countStreak(days, frozen, p.rest);
+  /* ننشر آخر ٢١ يوم تدريب فقط. لو امتلأ الحد وامتدت السلسلة إلى أقدمها
+     فهي أطول مما نرى، ورقم جهاز صاحبها أدق. أما دون الحد فالتاريخ كامل
+     عندنا والحساب الحي هو الصحيح — لا نرجع لرقم مخزّن قد يكون قديماً. */
+  const earliest = [...days, ...frozen].sort()[0];
+  if (days.length >= 21 && oldest && earliest && oldest <= earliest)
+    return Math.max(current, p.streak || 0);
+  return current;
 }
 
 /* نبذة الصديق — نص يكتبه غيري، فنقصّه ونهرّبه قبل عرضه */
@@ -99,6 +101,7 @@ function myStats(){
     lastAt: done.length ? done[0].at : 0,
     days: [...new Set(done.map(s => C.dayKey(s.at)))].sort().slice(-21),  // لعرض تقدّمه لأصدقائه
     frozen: Object.keys((C.S.freeze && C.S.freeze.used) || {}).sort().slice(-21),
+    rest: C.restWeekdays(),              // أيام راحته تصل سلسلته عند أصدقائه كما عنده
     badges: C.badgeCount ? C.badgeCount() : 0
   };
 }

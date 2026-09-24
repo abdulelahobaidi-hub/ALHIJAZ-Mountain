@@ -817,27 +817,32 @@ function awardFreezes(){
   return gained;
 }
 
-function streakInfo(){
-  const days = trainedDays();
-  const frozen = new Set(Object.keys(S.freeze.used || {}));
+/* حساب السلسلة — دالة واحدة نقية يستعملها ملفي وملفات الأصدقاء،
+   حتى لا تفترق القاعدة بين مكانين مرة أخرى.
+   days / frozen: مفاتيح أيام (YYYY-MM-DD)، rest: أرقام أيام الأسبوع (0 الأحد).
+   السلسلة = أيام تدرّب فعلاً. الراحة والتجميد يصلان الحلقة ولا يُحسبان. */
+function countStreak(days, frozen, rest){
+  days   = days instanceof Set ? days : new Set(days || []);
+  frozen = frozen instanceof Set ? frozen : new Set(frozen || []);
+  /* rest قد يأتي من ملف صديق: نقبل أرقاماً صحيحة فقط، وأربعة بحد أقصى،
+     وإلا أسبوع كله «راحة» يجعل الحلقة لا تنتهي */
+  const restSet = new Set((Array.isArray(rest) ? rest : [])
+    .filter(n => Number.isInteger(n) && n >= 0 && n <= 6).slice(0, REST_MAX));
   const all = new Set([...days, ...frozen]);
+  const bridged = d => all.has(dayKey(d)) || restSet.has(d.getDay());
+
   const today = new Date(); today.setHours(0,0,0,0);
-
-  /* السلسلة = أيام تدرّبت فيها فعلاً.
-     يوم الراحة والتجميد يصلان الحلقة ولا يُحسبان يوماً،
-     فالرقم يبقى صادقاً: «٥» تعني خمسة تمارين لا خمسة أيام مرّت. */
-  const bridged = d => all.has(dayKey(d)) || isRestDay(d);
-
-  let cur = 0;
+  let cur = 0, oldest = null;
   const probe = new Date(today);
   if (!bridged(probe)) probe.setDate(probe.getDate() - 1);           // أمس يبقيها حيّة
-  while (bridged(probe)){
-    if (days.has(dayKey(probe))) cur++;
+  for (let guard = 0; guard < 800 && bridged(probe); guard++){
+    const k = dayKey(probe);
+    if (days.has(k)) cur++;
+    if (all.has(k)) oldest = k;
     probe.setDate(probe.getDate() - 1);
   }
 
-  /* أطول سلسلة: نمشي على أيام التدريب، وبين كل يومين
-     نتأكد أن ما بينهما راحة أو تجميد لا انقطاعاً */
+  /* أطول سلسلة: بين كل يومي تدريب نتأكد أن ما بينهما راحة أو تجميد */
   const sorted = [...days].sort();
   let best = 0, run = 0, prev = null;
   sorted.forEach(k => {
@@ -853,8 +858,16 @@ function streakInfo(){
     best = Math.max(best, run);
     prev = k;
   });
+  return { current: cur, best, oldest };
+}
 
-  return { current: cur, best, days, frozen, all, todayDone: days.has(dayKey(today)) };
+function streakInfo(){
+  const days = trainedDays();
+  const frozen = new Set(Object.keys(S.freeze.used || {}));
+  const all = new Set([...days, ...frozen]);
+  const { current, best } = countStreak(days, frozen, restWeekdays());
+  const today = new Date(); today.setHours(0,0,0,0);
+  return { current, best, days, frozen, all, todayDone: days.has(dayKey(today)) };
 }
 
 /* تُستدعى عند الإقلاع وبعد كل تمرين */
@@ -2014,7 +2027,7 @@ $("bdSave").onclick = submitBody;
 $("bdNo").onclick = () => { $("bodySheet").hidden = true; };
 $("bodySheet").addEventListener("click", e => { if (e.target.id === "bodySheet") $("bodySheet").hidden = true; });
 
-const CTX = { S, toast, ask, dayKey, streakInfo, show, planRounds, planSeconds, addPlanCopy,
+const CTX = { S, toast, ask, dayKey, streakInfo, countStreak, restWeekdays, show, planRounds, planSeconds, addPlanCopy,
               badgeCount, openRM, openBody, delBody };
 initSocial(CTX);
 initProgress(CTX);
