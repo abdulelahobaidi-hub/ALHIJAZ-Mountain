@@ -1141,3 +1141,102 @@ main{padding-inline:20px}
 .up,.wp-day,.pick-item,.sys{padding:var(--row-py) var(--row-px)}
 :is(.plan-list,.build-list,.log,.friend-list,.group-list,.shared,.board,.chal-list,.req-list,
     .upnext,.pick-list) .ic:not(.log-pen,.me-pen,.gname-edit){width:var(--ic-list);height:var(--ic-list)}
+
+/* ============================================================
+   العادات — قائمة تحقق يومية خاصة + إحصائياتها
+   ============================================================ */
+#habitsBox{display:flex;flex-direction:column;gap:var(--gap-section)}
+#habitsBox > .head-row{margin-block:0 calc(var(--gap-label) - var(--gap-section))}
+
+/* بطاقة اليوم */
+.hb-today{background:var(--panel);border-radius:var(--r-lg);padding:18px 20px;box-shadow:var(--shadow-m);
+  display:flex;align-items:center;gap:16px}
+.hb-ring{width:84px;height:84px;flex:0 0 auto;transform:rotate(-90deg)}
+.hb-ring circle{fill:none;stroke-width:8}
+.hb-ring-bg{stroke:var(--panel-2)}
+.hb-ring-fg{stroke:var(--accent);stroke-linecap:round;transition:stroke-dashoffset .45s ease}
+.hb-ring-tx{transform:rotate(90deg);transform-origin:40px 40px;fill:var(--ink);font-size:18px;font-weight:500;
+  text-anchor:middle;dominant-baseline:central;font-family:inherit}
+.hb-today-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.hb-today-main b{font-size:var(--t-l);line-height:var(--lh-l);font-weight:500}
+.hb-lock{display:inline-flex;align-items:center;gap:6px;color:var(--soft);font-size:var(--t-s);line-height:var(--lh-s)}
+.hb-lock .ic{width:16px;height:16px}
+
+/* القائمة */
+.hb-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:var(--gap-label)}
+.hb-item{background:var(--panel);border-radius:var(--r-md);padding:var(--row-py) 14px;box-shadow:var(--shadow-s);
+  display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:center;column-gap:12px;row-gap:10px;
+  border:1.5px solid transparent;transition:background .2s,border-color .2s}
+.hb-item.done{background:var(--tint-good);border-color:color-mix(in srgb, var(--good) 35%, transparent)}
+.hb-check{width:var(--btn-h);height:var(--btn-h);flex:0 0 auto;border-radius:50%;cursor:pointer;
+  border:2px solid var(--rule);background:var(--panel-2);color:transparent;display:grid;place-items:center;
+  transition:background .2s,border-color .2s,transform .15s}
+.hb-check .ic{width:24px;height:24px;stroke-width:2.6}
+.hb-check:active{transform:scale(.9)}
+.hb-item.done .hb-check{background:var(--good);border-color:var(--good);color:#fff}
+.hb-main{display:contents}
+.hb-name{grid-column:2}
+.hb-dots{grid-column:2 / -1;grid-row:2}
+.hb-check{grid-row:1 / span 2}
+.hb-name{display:flex;align-items:center;gap:8px;font-weight:500;font-size:var(--t-m);line-height:var(--lh-m);
+  cursor:pointer;min-width:0;overflow-wrap:anywhere}
+.hb-item.done .hb-name{color:var(--soft)}
+.hb-emo{font-size:20px;line-height:1;flex:0 0 auto}
+.hb-dots{display:flex;gap:4px}
+.hb-dot{width:24px;height:24px;flex:0 0 auto;border-radius:50%;border:1.5px solid var(--rule);background:var(--panel-2);
+  color:var(--soft);font-family:inherit;font-size:11px;line-height:1;padding:0;cursor:pointer;display:grid;place-items:center}
+.hb-dot.on{background:var(--good);border-color:var(--good);color:#fff}
+.hb-dot.now{border-color:var(--accent)}
+.hb-dot.now.on{border-color:var(--good);box-shadow:0 0 0 2px var(--panel),0 0 0 3.5px var(--good)}
+.hb-streak{flex:0 0 auto;font-size:var(--t-s);line-height:var(--lh-s);font-weight:500;color:var(--flame-ink);
+  background:var(--tint-gold);border-radius:var(--r-pill);padding:5px 10px;white-space:nowrap}
+.hb-streak.zero{color:var(--soft);background:var(--panel-2);filter:grayscale(1)}
+.hb-edit{width:36px;height:36px;flex:0 0 auto;border-radius:var(--r-xs);border:0;background:transparent;color:var(--soft);
+  cursor:pointer;display:grid;place-items:center}
+.hb-edit .ic{width:20px;height:20px}
+
+/* فاضي */
+.hb-empty{align-items:center;text-align:center;gap:12px}
+
+/* خريطة الأسابيع */
+.hb-heat-card{gap:12px}
+.hb-heat-card h3{font-size:var(--t-m);line-height:var(--lh-m)}
+.hb-heat-heads,.hb-heat{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.hb-heat-heads span{text-align:center;font-size:var(--t-s);line-height:var(--lh-s);color:var(--soft)}
+.hb-hc{display:block;aspect-ratio:1;border-radius:var(--r-xxs);background:var(--panel-2);border:1px solid var(--rule)}
+.hb-heat .hb-hc{border-radius:8px;cursor:pointer}
+.hb-hc.l2{background:var(--ramp-2);border-color:transparent}
+.hb-hc.l3{background:var(--ramp-3);border-color:transparent}
+.hb-hc.l4{background:var(--ramp-4);border-color:transparent}
+.hb-hc.lf{background:transparent;border-color:transparent;cursor:default}
+.hb-hc.now{outline:2px solid var(--accent);outline-offset:2px}
+.hb-legend{display:inline-flex;align-items:center;gap:4px}
+.hb-legend .hb-hc{width:12px;height:12px;aspect-ratio:auto}
+.hb-legend small{color:var(--soft);font-size:12px;line-height:1}
+
+/* لكل عادة */
+.hb-stats{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:var(--gap-label)}
+.hb-stats li{background:var(--panel);border-radius:var(--r-md);padding:14px 16px;box-shadow:var(--shadow-s);
+  display:flex;flex-direction:column;gap:10px}
+.hb-st-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.hb-st-top b{display:flex;align-items:center;gap:8px;font-weight:500;min-width:0;overflow-wrap:anywhere}
+.hb-st-pct{font-weight:500;color:var(--accent);flex:0 0 auto}
+.hb-bar{display:block;height:8px;border-radius:var(--r-pill);background:var(--panel-2);overflow:hidden}
+.hb-bar u{display:block;height:100%;background:linear-gradient(90deg,var(--coral),var(--rose));border-radius:inherit;
+  transition:width .4s ease}
+.hb-st-meta{display:flex;flex-wrap:wrap;gap:6px 14px;color:var(--soft);font-size:var(--t-s);line-height:var(--lh-s)}
+
+/* ورقة الإضافة */
+.hb-emo-prev{width:72px;height:72px;margin:0 auto;border-radius:var(--r-md);background:var(--panel-2);
+  display:grid;place-items:center;font-size:40px;line-height:1}
+.hb-emojis{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;width:100%}
+.hb-emo-b{aspect-ratio:1;border-radius:var(--r-xs);border:1.5px solid var(--rule);background:var(--panel-2);
+  font-size:24px;line-height:1;cursor:pointer;display:grid;place-items:center;padding:0}
+.hb-emo-b.on{border-color:var(--accent);background:var(--tint-rose)}
+.field input.hb-emo-in{text-align:center;font-size:22px}
+#habitSheet .field{text-align:start}
+
+/* خمسة تبويبات — نقلّص الحشوة قليلاً حتى تتسع على الشاشات الضيقة */
+.tabbar{gap:2px;padding-inline:6px}
+.tabbar button span{white-space:nowrap}
+@media (max-width:360px){ .tabbar button{font-size:12px} }

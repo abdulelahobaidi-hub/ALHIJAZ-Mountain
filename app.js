@@ -12,6 +12,7 @@ import { L, LOC, SPEECH, lang, setLang, translateStatic } from "./i18n.js";
 import { shareCard } from "./share.js";
 import { initPush, renderPush, wirePush } from "./push.js";
 import { SHOTS } from "./ex.js";
+import { initHabits, loadHabits, renderHabits, HABITS_LK } from "./habits.js";
 
 translateStatic();
 
@@ -85,6 +86,7 @@ const S = {
   body: [],                                        // قياسات الجسم
   bodyInfo: { height: 0, sex: "" },                // الطول والجنس — ثابتان
   mine: [],                                        // تمارين حفظها المستخدم لتكرارها
+  habits: [],                                      // العادات اليومية — خاصة بصاحبها
   about: ""                                        // نبذة قصيرة يشوفها أصدقاؤك
 };
 
@@ -173,7 +175,7 @@ const LK = { plans:"hejaz.plans", sessions:"hejaz.sessions", mode:"hejaz.mode", 
 /* مفاتيح بيانات المستخدم — تُمسح عند الخروج أو عند دخول حساب آخر.
    السِمة واللغة والخيارات تفضيلات جهاز، فتبقى. */
 const DATA_KEYS = [LK.plans, LK.sessions, LK.freeze, LK.week, LK.body,
-                   LK.me, LK.bodyInfo, LK.mine, LK.owner];
+                   LK.me, LK.bodyInfo, LK.mine, LK.owner, HABITS_LK];
 function wipeLocalData(){
   DATA_KEYS.forEach(k => { try { localStorage.removeItem(k); } catch(e){} });
 }
@@ -200,6 +202,8 @@ async function loadAll(){
   S.bodyInfo = lsGet(LK.bodyInfo, { height:0, sex:"" });
   S.body     = lsGet(LK.body, []);
   let me     = lsGet(LK.me, null);
+  /* العادات تُحمَّل بالتوازي مع الباقي */
+  const habitsLoad = loadHabits();
 
   if (S.mode === "cloud" && S.fb){
     const { db, m } = S.fb;
@@ -245,6 +249,7 @@ async function loadAll(){
     S.about = String(me.about || "").slice(0, ABOUT_MAX);
   }
 
+  await habitsLoad;
   if (!Array.isArray(S.week) || S.week.length !== 7) S.week = ["","","","","","",""];
   if (!Array.isArray(S.mine)) S.mine = [];
   S.body.sort((a,b) => b.at - a.at);
@@ -884,7 +889,7 @@ async function refreshStreak(){
    VIEWS
    ============================================================ */
 function show(view){
-  ["home","plans","build","log","run","club","group","friend","dm"].forEach(v => {
+  ["home","plans","build","log","run","habits","club","group","friend","dm"].forEach(v => {
     const el = $("v-" + v); if (el) el.hidden = (v !== view);
   });
   const clubish = ["group","friend","dm"].includes(view);
@@ -894,6 +899,7 @@ function show(view){
   if (view === "plans") renderPlans();
   if (view === "log"){ renderProgress(); renderLog(); }
   if (view === "club") renderClub();
+  if (view === "habits") renderHabits();
   window.scrollTo(0, 0);
 }
 
@@ -2031,6 +2037,7 @@ const CTX = { S, toast, ask, dayKey, streakInfo, countStreak, restWeekdays, show
               badgeCount, openRM, openBody, delBody };
 initSocial(CTX);
 initProgress(CTX);
+initHabits(CTX);
 initPush(CTX);
 wirePush();
 

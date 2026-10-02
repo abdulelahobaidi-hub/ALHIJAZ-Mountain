@@ -56,6 +56,8 @@
   <symbol id="i-send" viewBox="0 0 24 24"><path d="M20 4 3.5 11.2l6.6 2.4M20 4l-5.6 16-4.3-6.4M20 4l-9.9 9.6"/></symbol>
   <symbol id="i-exit" viewBox="0 0 24 24"><path d="M14.5 8V5.8a1.8 1.8 0 0 0-1.8-1.8H6.3a1.8 1.8 0 0 0-1.8 1.8v12.4A1.8 1.8 0 0 0 6.3 20h6.4a1.8 1.8 0 0 0 1.8-1.8V16M10 12h10m0 0-3-3m3 3-3 3"/></symbol>
   <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 15.5V4m0 0L8.2 7.8M12 4l3.8 3.8M5 14v4.2A1.8 1.8 0 0 0 6.8 20h10.4a1.8 1.8 0 0 0 1.8-1.8V14"/></symbol>
+  <symbol id="i-habit" viewBox="0 0 24 24"><rect x="3.5" y="4" width="7" height="7" rx="2"/><path d="m5.3 7.6 1.4 1.4 2.4-2.6M14 6h6.5M14 9h4M3.5 15.5h7v4.5h-7zM14 16.5h6.5M14 19.5h4"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="9.5" rx="2.4"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></symbol>
   <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5.5" width="18" height="13" rx="2.6"/><path d="m3.8 7 7.1 5.3a1.8 1.8 0 0 0 2.2 0L20.2 7"/></symbol>
 </svg>
 
@@ -370,6 +372,17 @@
       </div>
     </section>
 
+    <!-- ---------- HABITS (private daily checklist) ---------- -->
+    <section class="view" id="v-habits" hidden>
+      <div class="head-row">
+        <h2>العادات</h2>
+        <button class="btn btn-soft btn-pill" id="btnNewHabit">
+          <svg class="ic"><use href="#i-plus"/></svg><span>عادة جديدة</span>
+        </button>
+      </div>
+      <div id="habitsBox"></div>
+    </section>
+
     <!-- ---------- CLUB (friends + groups) ---------- -->
     <section class="view" id="v-club" hidden>
       <div class="me-card" id="meCard"></div>
@@ -452,6 +465,7 @@
   <nav class="tabbar" id="tabbar">
     <button data-view="home" class="on"><svg class="ic"><use href="#i-home"/></svg><span>الرئيسية</span></button>
     <button data-view="plans"><svg class="ic"><use href="#i-list"/></svg><span>الجداول</span></button>
+    <button data-view="habits"><svg class="ic"><use href="#i-habit"/></svg><span>العادات</span></button>
     <button data-view="club"><svg class="ic"><use href="#i-friends"/></svg><span>النادي</span></button>
     <button data-view="log"><svg class="ic"><use href="#i-clock"/></svg><span>التقدّم</span></button>
   </nav>
@@ -643,6 +657,23 @@
 
     <button class="btn btn-primary" id="mnSave"><span>احفظ التمرين</span></button>
     <button class="btn btn-soft" id="mnNo">إلغاء</button>
+  </div>
+</div>
+
+<!-- إضافة / تعديل عادة -->
+<div class="sheet-wrap" id="habitSheet" hidden>
+  <div class="sheet">
+    <span class="hb-emo-prev" id="hbEmoPrev" aria-hidden="true">💧</span>
+    <p class="sheet-name" id="hbTitle">عادة جديدة</p>
+    <label class="field"><span>اسم العادة</span>
+      <input type="text" id="hbName" maxlength="32" placeholder="مثال: قراءة ١٠ صفحات" autocomplete="off"></label>
+    <p class="sheet-label">اختر إيموجي</p>
+    <div class="hb-emojis" id="hbEmojis"></div>
+    <label class="field"><span>أو اكتب إيموجي من الكيبورد</span>
+      <input type="text" id="hbEmoIn" class="hb-emo-in" placeholder="😀" autocomplete="off"></label>
+    <button class="btn btn-primary" id="hbSave">احفظ العادة</button>
+    <button class="btn btn-danger" id="hbDel" hidden><svg class="ic"><use href="#i-trash"/></svg><span>احذف العادة</span></button>
+    <button class="btn btn-soft" id="hbNo">إلغاء</button>
   </div>
 </div>
 
