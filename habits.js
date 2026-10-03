@@ -14,6 +14,8 @@ export function initHabits(ctx){ C = ctx; wire(); }
 export const HABITS_LK = "hejaz.habits";
 
 const NAME_MAX = 32;
+const NOTE_MAX = 120;             // طول الملاحظة الواحدة
+const LABEL_MAX = 24;             // عنوان الملاحظة، مثل «رقم الصفحة»
 const DAYS_KEEP = 1000;           // أقصى عدد أيام محفوظة لكل عادة
 const WINDOW = 30;                // نافذة الإحصائيات بالأيام
 const DAY = 86400000;
@@ -37,7 +39,7 @@ const EMOJIS = ["💧","📖","🚶","🏃","🧘","😴","🥗","🍎","☕","�
                 "✍️","🧠","💊","🦷","🌅","🧹","💰","🎯","🎸","🌱","❤️","⭐"];
 const STARTERS = [
   { emoji:"💧", name:"شرب ٨ أكواب ماء" },
-  { emoji:"📖", name:"قراءة ١٠ صفحات" },
+  { emoji:"📖", name:"قراءة ١٠ صفحات", noteOn:true, noteLabel:"رقم الصفحة" },
   { emoji:"🤲", name:"أذكار الصباح" },
   { emoji:"🚶", name:"مشي ١٠ دقائق" },
   { emoji:"😴", name:"النوم قبل ١١" },
@@ -47,13 +49,27 @@ const STARTERS = [
 /* ============================================================
    التخزين — محلي دائماً، وسحابي عند تسجيل الدخول
    ============================================================ */
+function cleanNotes(n, days){
+  const out = {};
+  if (!n || typeof n !== "object") return out;
+  const ok = new Set(days);
+  for (const [k, v] of Object.entries(n)){
+    const t = String(v == null ? "" : v).trim().slice(0, NOTE_MAX);
+    if (t && ok.has(k)) out[k] = t;                  // ملاحظة بلا إنجاز لا معنى لها
+  }
+  return out;
+}
 function clean(h){
+  const days = Array.isArray(h.days) ? [...new Set(h.days.filter(k => /^\d{4}-\d\d-\d\d$/.test(k)))].sort().slice(-DAYS_KEEP) : [];
   return {
     id: String(h.id),
     name: String(h.name || "").slice(0, NAME_MAX),
     emoji: String(h.emoji || "⭐").slice(0, 16),
     createdAt: +h.createdAt || Date.now(),
-    days: Array.isArray(h.days) ? [...new Set(h.days.filter(k => /^\d{4}-\d\d-\d\d$/.test(k)))].sort().slice(-DAYS_KEEP) : []
+    days,
+    noteOn: !!h.noteOn,
+    noteLabel: String(h.noteLabel || "").trim().slice(0, LABEL_MAX),
+    notes: cleanNotes(h.notes, days)
   };
 }
 const sortHabits = () => C.S.habits.sort((a,b) => a.createdAt - b.createdAt);
@@ -173,6 +189,21 @@ function overall(){
   return { pct: total ? Math.round(done / total * 100) : null, perfect, best };
 }
 
+/* ---------------- الملاحظات ---------------- */
+const noteLabel = h => h.noteLabel || L("ملاحظة");
+/* آخر ملاحظة كُتبت: [اليوم, النص] أو null */
+function lastNote(h){
+  const ks = Object.keys(h.notes || {}).sort();
+  return ks.length ? [ks[ks.length - 1], h.notes[ks[ks.length - 1]]] : null;
+}
+function whenLabel(k){
+  const d = fromKey(k), t0 = today0();
+  const diff = Math.round((t0 - d) / DAY);
+  if (diff === 0) return L("اليوم");
+  if (diff === 1) return L("أمس");
+  return d.toLocaleDateString(LOC(), { day:"numeric", month:"long" });
+}
+
 /* ============================================================
    العرض
    ============================================================ */
@@ -211,6 +242,19 @@ function listHTML(){
     const set = new Set(h.days);
     const on = set.has(tk);
     const st = streakOf(h);
+    const ln = lastNote(h);
+    let note = "";
+    if (ln){
+      note = `<button class="hb-note" data-day="${ln[0]}">`
+           + `<span class="hb-note-ic" aria-hidden="true">📝</span>`
+           + `<span class="hb-note-tx"><b>${esc(noteLabel(h))}:</b> ${esc(ln[1])}</span>`
+           + `<small>${esc(whenLabel(ln[0]))}</small></button>`;
+    }
+    if (on && (!ln || ln[0] !== tk)){
+      note += `<button class="hb-note add" data-day="${tk}">`
+            + `<span class="hb-note-ic" aria-hidden="true">＋</span>`
+            + `<span class="hb-note-tx">${esc(h.noteOn ? L("اكتب {0} لليوم", noteLabel(h)) : L("أضف ملاحظة لليوم"))}</span></button>`;
+    }
     let dots = "";
     for (let i = 6; i >= 0; i--){
       const d = addDays(t0, -i), k = key(d), dn = set.has(k);
@@ -227,6 +271,7 @@ function listHTML(){
         <div class="hb-main">
           <b class="hb-name"><span class="hb-emo" aria-hidden="true">${esc(h.emoji)}</span>${esc(h.name)}</b>
           <div class="hb-dots">${dots}</div>
+          ${note ? `<div class="hb-notes">${note}</div>` : ""}
         </div>
         <span class="hb-streak${st ? "" : " zero"}" aria-label="${esc(L("سلسلة {0} يوم", st))}">🔥 ${st}</span>
         <button class="hb-edit" aria-label="${esc(L("عدّل العادة"))}"><svg class="ic"><use href="#i-edit"/></svg></button>
@@ -294,8 +339,17 @@ function perHabitHTML(){
           <span>🏆 ${L("الأفضل {0}", best)}</span>
           <span>✅ ${L("{0} من {1} يوم", w.done, w.total)}</span>
         </div>
+        ${notesLogHTML(h)}
       </li>`;
   }).join("") + `</ul>`;
+}
+
+function notesLogHTML(h){
+  const ks = Object.keys(h.notes || {}).sort().reverse().slice(0, 5);
+  if (!ks.length) return "";
+  return `<details class="hb-nlog"><summary>📝 ${esc(L("آخر الملاحظات"))} <small>${Object.keys(h.notes).length}</small></summary><ul>`
+    + ks.map(k => `<li><span>${esc(whenLabel(k))}</span><b>${esc(h.notes[k])}</b></li>`).join("")
+    + `</ul></details>`;
 }
 
 function statsHTML(){
@@ -338,12 +392,16 @@ async function toggleDay(id, k){
   const turnedOn = !set.has(k);
   if (turnedOn) set.add(k); else set.delete(k);
   h.days = [...set].sort();
+  if (!turnedOn && h.notes && h.notes[k]){ h.notes = { ...h.notes }; delete h.notes[k]; }
   /* تأشير يوم قبل إنشاء العادة يقدّم تاريخ إنشائها */
   const d = fromKey(k);
   if (turnedOn && d < createdDay(h)) h.createdAt = d.getTime();
   try { navigator.vibrate && navigator.vibrate(12); } catch(e){}
   renderHabits();
   await putHabit(h);
+
+  /* العادة تطلب ملاحظة عند الإتمام — نفتح الورقة مباشرة */
+  if (turnedOn && h.noteOn){ openNote(h, k); return; }
 
   if (turnedOn){
     const after = streakOf(h);
@@ -363,6 +421,9 @@ function wireBox(box){
     /* الضغط على اسم العادة يؤشّرها أيضاً — أسهل على الإصبع */
     li.querySelector(".hb-name").onclick = () => toggleDay(id, key(today0()));
     li.querySelector(".hb-edit").onclick = () => openSheet(C.S.habits.find(h => h.id === id));
+    li.querySelectorAll(".hb-note").forEach(b => {
+      b.onclick = e => { e.stopPropagation(); openNote(C.S.habits.find(h => h.id === id), b.dataset.day); };
+    });
     li.querySelectorAll(".hb-dot").forEach(b => {
       b.onclick = e => { e.stopPropagation(); toggleDay(id, b.dataset.day); };
     });
@@ -370,7 +431,8 @@ function wireBox(box){
   box.querySelectorAll(".hb-starter").forEach(b => {
     b.onclick = async () => {
       const s = STARTERS[+b.dataset.i];
-      await putHabit({ id: uid(), name: L(s.name), emoji: s.emoji, createdAt: Date.now(), days: [] });
+      await putHabit({ id: uid(), name: L(s.name), emoji: s.emoji, createdAt: Date.now(), days: [],
+                       noteOn: !!s.noteOn, noteLabel: s.noteLabel ? L(s.noteLabel) : "" });
       renderHabits();
     };
   });
@@ -421,6 +483,9 @@ function openSheet(h){
   $("hbName").value = h ? h.name : "";
   $("hbEmoIn").value = "";
   $("hbDel").hidden = !h;
+  $("hbNoteOn").checked = !!(h && h.noteOn);
+  $("hbNoteLabel").value = h ? (h.noteLabel || "") : "";
+  $("hbNoteLabelBox").hidden = !$("hbNoteOn").checked;
   $("hbEmojis").innerHTML = EMOJIS.map(e => `<button type="button" class="hb-emo-b">${e}</button>`).join("");
   $("hbEmojis").querySelectorAll("button").forEach(b => {
     b.onclick = () => { pickedEmoji = b.textContent; $("hbEmoIn").value = ""; paintEmoji(); };
@@ -437,9 +502,11 @@ async function saveSheet(){
   const dup = C.S.habits.some(h => h.name === name && (!editing || h.id !== editing.id));
   if (dup){ C.toast(L("عندك عادة بنفس الاسم")); return; }
   const isNew = !editing;
+  const noteOn = $("hbNoteOn").checked;
+  const noteLbl = $("hbNoteLabel").value.trim().slice(0, LABEL_MAX);
   const h = editing
-    ? { ...editing, name, emoji: pickedEmoji }
-    : { id: uid(), name, emoji: pickedEmoji, createdAt: Date.now(), days: [] };
+    ? { ...editing, name, emoji: pickedEmoji, noteOn, noteLabel: noteLbl }
+    : { id: uid(), name, emoji: pickedEmoji, createdAt: Date.now(), days: [], noteOn, noteLabel: noteLbl, notes: {} };
   closeSheet();
   await putHabit(h);
   renderHabits();
@@ -457,6 +524,49 @@ async function deleteFromSheet(){
   renderHabits();
 }
 
+/* ---------------- ورقة الملاحظة ---------------- */
+let noteFor = null;               // { id, day }
+
+function openNote(h, k){
+  if (!h) return;
+  noteFor = { id: h.id, day: k };
+  const cur = (h.notes || {})[k] || "";
+  const prev = Object.keys(h.notes || {}).filter(x => x < k).sort().pop();
+  $("hnEmo").textContent = h.emoji;
+  $("hnTitle").textContent = h.name;
+  $("hnSub").textContent = (h.days.includes(k) ? "✅ " : "") + whenLabel(k);
+  $("hnLabel").textContent = noteLabel(h);
+  $("hnInput").value = cur;
+  $("hnInput").placeholder = prev ? L("آخر مرة: {0}", h.notes[prev]) : (h.noteOn ? noteLabel(h) : L("مثال: كيف كان اليوم"));
+  $("hnDel").hidden = !cur;
+  $("hnSkip").textContent = cur ? L("إلغاء") : L("تخطّي");
+  $("habitNote").hidden = false;
+  setTimeout(() => { const i = $("hnInput"); i.focus(); i.select(); }, 60);
+}
+
+function closeNote(){
+  $("habitNote").hidden = true;
+  noteFor = null;
+  renderHabits();
+}
+
+async function saveNote(clear){
+  if (!noteFor) return;
+  const h = C.S.habits.find(x => x.id === noteFor.id);
+  const k = noteFor.day;
+  if (!h){ closeNote(); return; }
+  const t = clear ? "" : $("hnInput").value.trim().slice(0, NOTE_MAX);
+  const notes = { ...(h.notes || {}) };
+  if (t){
+    notes[k] = t;
+    if (!h.days.includes(k)) h.days = [...h.days, k].sort();   // كتابة ملاحظة تعني الإنجاز
+  } else delete notes[k];
+  h.notes = notes;
+  closeNote();
+  await putHabit(h);
+  if (t) C.toast(L("انحفظت الملاحظة 📝"));
+}
+
 function wire(){
   const add = $("btnNewHabit");
   if (add) add.onclick = () => openSheet(null);
@@ -464,6 +574,15 @@ function wire(){
   $("hbNo").onclick = closeSheet;
   $("hbDel").onclick = deleteFromSheet;
   $("habitSheet").addEventListener("click", e => { if (e.target.id === "habitSheet") closeSheet(); });
+  $("hbNoteOn").addEventListener("change", () => {
+    $("hbNoteLabelBox").hidden = !$("hbNoteOn").checked;
+    if ($("hbNoteOn").checked) setTimeout(() => $("hbNoteLabel").focus(), 30);
+  });
+  $("hnSave").onclick = () => saveNote(false);
+  $("hnDel").onclick  = () => saveNote(true);
+  $("hnSkip").onclick = closeNote;
+  $("habitNote").addEventListener("click", e => { if (e.target.id === "habitNote") closeNote(); });
+  $("hnInput").addEventListener("keydown", e => { if (e.key === "Enter"){ e.preventDefault(); saveNote(false); } });
   $("hbName").addEventListener("keydown", e => { if (e.key === "Enter"){ e.preventDefault(); saveSheet(); } });
   $("hbEmoIn").addEventListener("input", () => {
     const g = firstGrapheme($("hbEmoIn").value);

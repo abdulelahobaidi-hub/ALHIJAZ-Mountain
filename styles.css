@@ -1240,3 +1240,26 @@ main{padding-inline:20px}
 .tabbar{gap:2px;padding-inline:6px}
 .tabbar button span{white-space:nowrap}
 @media (max-width:360px){ .tabbar button{font-size:12px} }
+
+/* ---------- ملاحظات العادات ---------- */
+.hb-notes{grid-column:2 / -1;grid-row:3;display:flex;flex-direction:column;gap:6px;min-width:0}
+.hb-note{display:flex;align-items:center;gap:8px;width:100%;min-height:36px;padding:7px 12px;border-radius:var(--r-xs);
+  border:1.5px solid var(--rule);background:var(--panel);color:var(--ink);font-family:inherit;
+  font-size:var(--t-s);line-height:var(--lh-s);text-align:start;cursor:pointer}
+.hb-note-ic{flex:0 0 auto;font-size:15px;line-height:1}
+.hb-note-tx{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hb-note-tx b{font-weight:500;color:var(--soft)}
+.hb-note small{flex:0 0 auto;color:var(--soft);font-size:12px}
+.hb-note.add{border-style:dashed;color:var(--accent);background:transparent}
+.hb-note.add .hb-note-ic{font-size:16px;font-weight:500}
+.hb-item.done .hb-note:not(.add){background:var(--panel)}
+.hb-note-sw{justify-content:flex-start;margin-top:4px}
+
+.hb-nlog{border-top:1px solid var(--rule);padding-top:10px}
+.hb-nlog summary{cursor:pointer;list-style:none;color:var(--soft);font-size:var(--t-s);line-height:var(--lh-s);font-weight:500}
+.hb-nlog summary::-webkit-details-marker{display:none}
+.hb-nlog summary small{font-weight:400;background:var(--panel-2);border-radius:var(--r-pill);padding:1px 8px;margin-inline-start:4px}
+.hb-nlog ul{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
+.hb-nlog li{display:flex;justify-content:space-between;gap:12px;font-size:var(--t-s);line-height:var(--lh-s)}
+.hb-nlog li span{color:var(--soft);flex:0 0 auto}
+.hb-nlog li b{font-weight:500;text-align:end;overflow-wrap:anywhere}

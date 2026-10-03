@@ -844,5 +844,22 @@ const EN = {
   "عندك عادة بنفس الاسم": "You already have a habit with that name",
   "أُضيفت العادة — أشّرها كل يوم": "Habit added — tick it off every day",
   "حذف العادة": "Delete habit",
-  "«{0}» وكل سجلها وسلسلتها — ما تقدر ترجعها.": "“{0}” and all its history and streak — this can’t be undone."
+  "«{0}» وكل سجلها وسلسلتها — ما تقدر ترجعها.": "“{0}” and all its history and streak — this can’t be undone.",
+
+  /* ---- ملاحظات العادات ---- */
+  "رقم الصفحة": "Page number",
+  "ملاحظة": "Note",
+  "اكتب {0} لليوم": "Add today's {0}",
+  "أضف ملاحظة لليوم": "Add a note for today",
+  "آخر الملاحظات": "Recent notes",
+  "آخر مرة: {0}": "Last time: {0}",
+  "مثال: كيف كان اليوم": "e.g. how it went today",
+  "تخطّي": "Skip",
+  "انحفظت الملاحظة 📝": "Note saved 📝",
+  "اطلب ملاحظة عند الإتمام": "Ask for a note when done",
+  "عنوان الملاحظة": "Note title",
+  "مثال: رقم الصفحة": "e.g. Page number",
+  "احفظ الملاحظة": "Save note",
+  "احذف الملاحظة": "Delete note",
+  "اليوم": "Today"
 };

@@ -671,9 +671,26 @@
     <div class="hb-emojis" id="hbEmojis"></div>
     <label class="field"><span>أو اكتب إيموجي من الكيبورد</span>
       <input type="text" id="hbEmoIn" class="hb-emo-in" placeholder="😀" autocomplete="off"></label>
+    <label class="switch hb-note-sw"><input type="checkbox" id="hbNoteOn"><span>اطلب ملاحظة عند الإتمام</span></label>
+    <label class="field" id="hbNoteLabelBox" hidden><span>عنوان الملاحظة</span>
+      <input type="text" id="hbNoteLabel" maxlength="24" placeholder="مثال: رقم الصفحة" autocomplete="off"></label>
     <button class="btn btn-primary" id="hbSave">احفظ العادة</button>
     <button class="btn btn-danger" id="hbDel" hidden><svg class="ic"><use href="#i-trash"/></svg><span>احذف العادة</span></button>
     <button class="btn btn-soft" id="hbNo">إلغاء</button>
+  </div>
+</div>
+
+<!-- ملاحظة عند إتمام العادة -->
+<div class="sheet-wrap" id="habitNote" hidden>
+  <div class="sheet">
+    <span class="hb-emo-prev" id="hnEmo" aria-hidden="true">📖</span>
+    <p class="sheet-name" id="hnTitle">—</p>
+    <p class="sheet-mail" id="hnSub">—</p>
+    <label class="field"><span id="hnLabel">ملاحظة</span>
+      <input type="text" id="hnInput" maxlength="120" autocomplete="off"></label>
+    <button class="btn btn-primary" id="hnSave">احفظ الملاحظة</button>
+    <button class="btn btn-danger" id="hnDel" hidden><svg class="ic"><use href="#i-trash"/></svg><span>احذف الملاحظة</span></button>
+    <button class="btn btn-soft" id="hnSkip">تخطّي</button>
   </div>
 </div>
 
