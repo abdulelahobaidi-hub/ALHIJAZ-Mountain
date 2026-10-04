@@ -144,6 +144,7 @@
     <section class="view" id="v-home">
 
       <div class="streak">
+       <div class="streak-sky">
         <svg class="streak-art" viewBox="0 0 360 200" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
           <defs>
             <linearGradient id="gSun" x1="0" y1="0" x2="0" y2="1">
@@ -167,6 +168,9 @@
         <p class="streak-num" id="streakNum">0</p>
         <p class="streak-sub" id="streakSub">ابدأ اليوم وخلّ العدّاد يمشي</p>
         <div class="week" id="week"></div>
+       </div>
+        <!-- خط الارتفاع: كل يوم في السلسلة يرفعك ١٠٠ متر نحو القاعدة ثم المعسكر ثم القمة -->
+        <div class="ascent" id="ascent"></div>
       </div>
 
       <div class="today">
@@ -182,6 +186,18 @@
           <svg class="ic"><use href="#i-timer"/></svg><span>عندي وقت قصير</span>
         </button>
       </div>
+
+      <button class="hb-mini" id="hbMini" hidden>
+        <svg class="hb-mini-ring" viewBox="0 0 44 44" aria-hidden="true">
+          <circle cx="22" cy="22" r="18" class="hb-mini-bg"/>
+          <circle cx="22" cy="22" r="18" class="hb-mini-fg" id="hbMiniFg" stroke-dasharray="113.1" stroke-dashoffset="113.1"/>
+        </svg>
+        <span class="hb-mini-main">
+          <b id="hbMiniTitle">عاداتك اليوم</b>
+          <span class="hb-mini-sub"><svg class="ic"><use href="#i-lock"/></svg><span>خاصة بك وحدك</span></span>
+        </span>
+        <svg class="ic hb-mini-go" aria-hidden="true"><use href="#i-back"/></svg>
+      </button>
 
       <div class="stats">
         <div class="stat">
@@ -338,9 +354,18 @@
           <circle id="climbDot" cx="4" cy="100" r="8" fill="#C73559" stroke="#fff" stroke-width="4"/>
         </svg>
 
-        <p class="run-phase" id="runPhase">جاهز</p>
-        <h2 class="run-move" id="runMove">—</h2>
-        <p class="run-clock" id="runClock">0:00</p>
+        <!-- قرص المرحلة: الحلقة تنقص مع الوقت المتبقي من التمرين الحالي -->
+        <div class="dial">
+          <svg class="dial-ring" viewBox="0 0 120 120" aria-hidden="true">
+            <circle class="dial-bg" cx="60" cy="60" r="54"/>
+            <circle class="dial-fg" id="dialFg" cx="60" cy="60" r="54" stroke-dasharray="339.29" stroke-dashoffset="0"/>
+          </svg>
+          <div class="dial-in">
+            <p class="run-phase" id="runPhase">جاهز</p>
+            <p class="run-clock" id="runClock">0:00</p>
+            <h2 class="run-move" id="runMove">—</h2>
+          </div>
+        </div>
 
         <div class="lift" id="liftBox" hidden>
           <button class="lift-b" id="liftMinus" aria-label="أنقص الوزن">−</button>

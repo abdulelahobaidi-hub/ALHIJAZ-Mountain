@@ -197,9 +197,11 @@ main{flex:1;padding:18px 18px 110px;max-width:560px;width:100%;margin:0 auto}
 /* ---------------- streak hero ---------------- */
 .streak{
   position:relative;overflow:hidden;border-radius:var(--r-lg);
-  padding:20px 20px 18px;color:var(--on-accent);box-shadow:0 16px 34px -18px rgba(199,53,89,.75);
+  color:var(--on-accent);box-shadow:0 16px 34px -18px rgba(199,53,89,.75);
   isolation:isolate;
 }
+/* السماء: الغروب والعدّاد والأسبوع — والرسم محصور فيها فلا يتمدد مع خط الارتفاع */
+.streak-sky{position:relative;isolation:isolate;padding:20px 20px 18px}
 .streak-art{position:absolute;inset:0;width:100%;height:100%;z-index:-1}
 .streak-top{display:flex}
 .streak-chip{
@@ -230,11 +232,51 @@ main{flex:1;padding:18px 18px 110px;max-width:560px;width:100%;margin:0 auto}
 .day.ahead{opacity:.45}
 .day.ahead i{background:transparent;border-style:dashed}
 
+/* ---------------- خط الارتفاع ----------------
+   الأرض تحت الغروب: نفس لون الجبل الأمامي في الرسم، فيكمل المشهد */
+.ascent{background:#54244A;padding:14px 20px 14px;display:flex;flex-direction:column;gap:4px}
+.asc-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+  font-size:var(--t-s);line-height:var(--lh-s);color:rgba(255,246,239,.85)}
+.asc-head b{font-weight:500;color:var(--on-accent)}
+.asc-ridge{display:block;width:100%;height:auto;overflow:visible}
+html[dir="rtl"] .asc-ridge{transform:scaleX(-1)}
+.asc-line{fill:none;stroke:rgba(255,255,255,.38);stroke-width:2.5;stroke-dasharray:4 6;stroke-linecap:round;stroke-linejoin:round}
+.asc-done{fill:none;stroke:var(--gold-soft);stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
+.asc-mk{fill:#54244A;stroke:rgba(255,255,255,.5);stroke-width:2.5}
+.asc-mk.next{stroke:var(--cream);stroke-width:3}
+.asc-mk.on{fill:var(--gold-soft);stroke:none}
+.asc-ck{fill:none;stroke:#54244A;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.asc-flag{fill:rgba(255,255,255,.5);stroke:rgba(255,255,255,.5);stroke-width:2;stroke-linejoin:round}
+.asc-flag.on{fill:var(--gold-soft);stroke:var(--gold-soft)}
+.asc-me{fill:var(--on-accent);stroke:var(--rose);stroke-width:3.5}
+.asc-lbs{position:relative;height:var(--lh-s)}
+.asc-lb{position:absolute;top:0;inset-inline-start:var(--x);transform:translateX(-50%);white-space:nowrap;
+  font-size:var(--t-s);line-height:var(--lh-s);color:rgba(255,246,239,.7)}
+html[dir="rtl"] .asc-lb{transform:translateX(50%)}
+.asc-lb.end,html[dir="rtl"] .asc-lb.end{inset-inline-start:auto;inset-inline-end:0;transform:none}
+.asc-lb.on{color:var(--gold-soft)}
+
 /* ---------------- today card ---------------- */
 .today{background:var(--panel);border-radius:var(--r-lg);padding:20px;box-shadow:var(--shadow-m);
   display:flex;flex-direction:column;gap:16px}
 .today-head h2{font-size:var(--f-8);line-height:var(--lh-l);margin:4px 0 3px;font-weight:500}
 .today-head p{margin:0;font-size:var(--f-4);line-height:var(--lh-s);color:var(--soft)}
+
+/* ---------------- العادات في الرئيسية ---------------- */
+.hb-mini{display:flex;align-items:center;gap:14px;width:100%;min-height:68px;padding:12px 16px;
+  background:var(--panel);border:0;border-radius:var(--r-lg);box-shadow:var(--shadow-s);
+  font-family:inherit;color:var(--ink);text-align:start;cursor:pointer;transition:transform .08s ease}
+.hb-mini:active{transform:scale(.985)}
+.hb-mini-ring{width:44px;height:44px;flex:0 0 auto;transform:rotate(-90deg)}
+.hb-mini-bg,.hb-mini-fg{fill:none;stroke-width:5}
+.hb-mini-bg{stroke:var(--panel-2)}
+.hb-mini-fg{stroke:var(--accent);stroke-linecap:round;transition:stroke-dashoffset .45s ease}
+.hb-mini-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.hb-mini-main b{font-weight:500;font-size:var(--t-m);line-height:var(--lh-m)}
+.hb-mini-sub{display:inline-flex;align-items:center;gap:6px;font-size:var(--t-s);line-height:var(--lh-s);color:var(--soft)}
+.hb-mini-sub .ic{width:16px;height:16px}
+.hb-mini-go{color:var(--soft)}
+html[dir="rtl"] .hb-mini-go{transform:scaleX(-1)}
 
 /* ---------------- stats ---------------- */
 .stats{display:flex;gap:12px}
@@ -366,9 +408,9 @@ body.is-lift .run-clock{color:var(--accent);font-size:clamp(64px,22vw,96px)}
 .run{gap:16px}
 .run-card{
   background:var(--panel);border-radius:var(--r-lg);box-shadow:var(--shadow-m);
-  padding:0 20px 26px;text-align:center;position:relative;overflow:hidden;
+  padding:0 20px 22px;text-align:center;position:relative;overflow:hidden;
 }
-.climb{width:calc(100% + 40px);margin:0 -20px 10px;height:112px;display:block;transform:scaleX(-1)}
+.climb{width:calc(100% + 40px);margin:0 -20px 4px;height:84px;display:block;transform:scaleX(-1)}
 .run-phase{margin:0;font-size:var(--f-4);line-height:var(--lh-s);color:var(--soft);font-weight:500}
 .run-move{font-size:var(--f-9);font-weight:500;margin:3px 0 0;line-height:var(--lh-l)}
 .run-clock{font-size:clamp(76px,26vw,116px);font-weight:500;letter-spacing:-.05em;line-height:1;margin:8px 0 0}
@@ -379,6 +421,22 @@ body.is-lift .run-clock{color:var(--accent);font-size:clamp(64px,22vw,96px)}
 .run-next{margin:8px 0 0;font-size:var(--f-4);line-height:var(--lh-s);color:var(--soft)}
 .run-next b{color:var(--ink);font-weight:500}
 body.is-rest .run-clock,body.is-rest .run-move{color:var(--rest)}
+
+/* ---------------- قرص المرحلة ---------------- */
+.dial{position:relative;width:min(252px,68vw);aspect-ratio:1;margin:0 auto;display:grid;place-items:center}
+.dial-ring{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg)}
+/* في العربي تنقص الحلقة عكس عقارب الساعة — مثل اتجاه القراءة */
+html[dir="rtl"] .dial-ring{transform:rotate(-90deg) scaleY(-1)}
+.dial-bg,.dial-fg{fill:none;stroke-width:7}
+.dial-bg{stroke:var(--panel-2)}
+.dial-fg{stroke:var(--accent);stroke-linecap:round}
+.dial-fg.idle{opacity:.35}
+body.is-rest .dial-fg{stroke:var(--rest)}
+body.is-prep .dial-fg{stroke:var(--soft)}
+.dial-in{position:relative;display:flex;flex-direction:column;align-items:center;max-width:76%}
+.dial .run-clock{font-size:clamp(56px,17vw,76px);margin:6px 0}
+.dial .run-clock.done{font-size:clamp(20px,5.6vw,26px);margin:8px 0}
+.dial .run-move{margin:0}
 body.is-prep .run-clock{color:var(--soft)}
 .run-meta{display:flex;justify-content:space-between;font-size:var(--f-3);line-height:var(--lh-s);color:var(--soft);padding:0 6px;margin-top:-4px}
 .ticks{display:grid;gap:7px}
@@ -1263,3 +1321,21 @@ main{padding-inline:20px}
 .hb-nlog li{display:flex;justify-content:space-between;gap:12px;font-size:var(--t-s);line-height:var(--lh-s)}
 .hb-nlog li span{color:var(--soft);flex:0 0 auto}
 .hb-nlog li b{font-weight:500;text-align:end;overflow-wrap:anywhere}
+
+/* ============================================================
+   مسار الصعود في صفحة التقدّم
+   ============================================================ */
+.summits{gap:14px}
+.summits h3{font-size:var(--t-m);line-height:var(--lh-m);font-weight:500}
+.sm-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.sm{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;
+  padding:14px 8px 12px;border-radius:var(--r-md);background:var(--panel-2);border:1.5px solid transparent;color:var(--soft)}
+.sm b{font-weight:500;font-size:var(--t-s);line-height:var(--lh-s);color:var(--ink)}
+.sm span{font-size:var(--t-s);line-height:var(--lh-s)}
+.sm-ic{width:30px;height:30px}
+.sm.on{background:var(--tint-gold);color:var(--gold-ink)}
+.sm.on .sm-ic{fill:currentColor;stroke:none}
+.sm.next{background:var(--tint-rose);border-color:var(--accent);color:var(--ink)}
+.sm.next .sm-ic{color:var(--accent)}
+.sm .bg-bar{margin-top:2px}
+.sm.next .bg-bar u{background:var(--accent)}

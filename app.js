@@ -921,6 +921,101 @@ async function enterApp(){
   offerPlan();
 }
 
+/* ---------- خط الارتفاع ----------
+   كل يوم في السلسلة يرفعك ١٠٠ متر. ثلاث محطات: القاعدة ٧ أيام،
+   المعسكر ٣٠، القمة ١٠٠. «at» موضع المحطة على طول الحافة (٠ → ١)،
+   والمسافة بين محطتين تُقسم بالتساوي على أيامها. */
+const ASCENT = [
+  { d:7,   name:"القاعدة", at:.24 },
+  { d:30,  name:"المعسكر", at:.58 },
+  { d:100, name:"القمة",   at:1 }
+];
+/* الحافة بالاتجاه الإنجليزي (البداية يساراً)؛ في العربي تنقلب بالـ CSS */
+const RIDGE = [[8,66],[34,57],[56,61],[84,48],[112,53],[146,37],[176,42],[212,28],[244,33],[276,22],[306,14]];
+
+function ascentFrac(n){
+  let a = 0, ad = 0;
+  for (const s of ASCENT){
+    if (n <= s.d) return a + (s.at - a) * (n - ad) / (s.d - ad);
+    a = s.at; ad = s.d;
+  }
+  return 1;
+}
+function ascent(n){
+  const next = ASCENT.find(s => n < s.d) || null;
+  return { meters: n * 100, next, left: next ? next.d - n : 0, frac: ascentFrac(n) };
+}
+/* نقطة على الحافة عند كسر من طولها، والمسار حتى تلك النقطة */
+function ridgeAt(f){
+  const segs = []; let total = 0;
+  for (let i = 1; i < RIDGE.length; i++){
+    const [x1,y1] = RIDGE[i-1], [x2,y2] = RIDGE[i];
+    const len = Math.hypot(x2-x1, y2-y1); segs.push(len); total += len;
+  }
+  let want = Math.max(0, Math.min(1, f)) * total;
+  let d = `M${RIDGE[0][0]} ${RIDGE[0][1]}`;
+  for (let i = 0; i < segs.length; i++){
+    const [x1,y1] = RIDGE[i], [x2,y2] = RIDGE[i+1];
+    if (want <= segs[i]){
+      const t = segs[i] ? want / segs[i] : 0;
+      const x = +(x1 + (x2-x1)*t).toFixed(1), y = +(y1 + (y2-y1)*t).toFixed(1);
+      return { x, y, d: d + ` L${x} ${y}` };
+    }
+    want -= segs[i]; d += ` L${x2} ${y2}`;
+  }
+  const [x,y] = RIDGE[RIDGE.length-1];
+  return { x, y, d };
+}
+const fmtNum = n => Number(n).toLocaleString(LOC());
+const esc = s => String(s == null ? "" : s)
+  .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+
+function renderAscent(n){
+  const box = $("ascent"); if (!box) return;
+  const a = ascent(n);
+  const full = ridgeAt(1).d, me = ridgeAt(a.frac);
+  const marks = ASCENT.map(s => {
+    const p = ridgeAt(s.at), on = n >= s.d, nx = a.next === s;
+    if (s.d === 100){
+      return `<path class="asc-flag${on ? " on" : ""}" d="M${p.x} ${p.y} V${p.y-12} l11 4 -11 4"/>`;
+    }
+    return `<circle class="asc-mk${on ? " on" : nx ? " next" : ""}" cx="${p.x}" cy="${p.y}" r="6"/>`
+         + (on ? `<path class="asc-ck" d="M${p.x-3} ${p.y} l2.2 2.2 4-4.4"/>` : "");
+  }).join("");
+  const sub = !a.next ? L("وصلت القمة — استمر فوق السحاب")
+            : n === 0 ? L("أول يوم يرفعك 100 م")
+            : a.left === 1 ? L("{0} بكرة", L(a.next.name))
+            : L("{1} بعد {0} يوم", a.left, L(a.next.name));
+  const labels = ASCENT.map(s =>
+    `<span class="asc-lb${s.d === 100 ? " end" : ""}${n >= s.d ? " on" : ""}" style="--x:${(ridgeAt(s.at).x / 320 * 100).toFixed(1)}%">`
+    + `${esc(L(s.name))}</span>`).join("");
+  box.innerHTML = `
+    <div class="asc-head">
+      <span>${L("ارتفاعك")} <b>${esc(L("{0} م", fmtNum(a.meters)))}</b></span>
+      <span>${esc(sub)}</span>
+    </div>
+    <svg class="asc-ridge" viewBox="0 0 320 74" role="img"
+         aria-label="${esc(L("مسار الصعود: {0} يوم من {1}", n, 100))}">
+      <path class="asc-line" d="${full}"/>
+      ${n > 0 ? `<path class="asc-done" d="${me.d}"/>` : ""}
+      ${marks}
+      <circle class="asc-me" cx="${me.x}" cy="${me.y}" r="7.5"/>
+    </svg>
+    <div class="asc-lbs" aria-hidden="true">${labels}</div>`;
+}
+
+/* بطاقة العادات المختصرة في الرئيسية — تظهر لمن عنده عادات فقط */
+function renderHabitsMini(){
+  const el = $("hbMini"); if (!el) return;
+  const list = S.habits || [];
+  el.hidden = !list.length;
+  if (!list.length) return;
+  const tk = dayKey(new Date());
+  const done = list.filter(h => (h.days || []).includes(tk)).length;
+  $("hbMiniTitle").textContent = L("عاداتك اليوم · {0}", L("{0} من {1}", done, list.length));
+  $("hbMiniFg").setAttribute("stroke-dashoffset", (113.1 * (1 - done / list.length)).toFixed(1));
+}
+
 /* ---------- home ---------- */
 function renderHome(){
   const st = streakInfo();
@@ -951,6 +1046,8 @@ function renderHome(){
        + `<span aria-hidden="true">${names[d.getDay()]}</span></div>`;
   }
   $("week").innerHTML = h;
+  renderAscent(st.current);
+  renderHabitsMini();
   $("freezeChip").innerHTML = S.freeze.credits
     ? `❄️ ${S.freeze.credits} ${S.freeze.credits === 1 ? L("تجميد") : L("تجميدات")}`
     : restWeekdays().length ? L("❄️ تكسب تجميداً كل يوم راحة")
@@ -1305,6 +1402,16 @@ function renderRun(){
     ? L("الجولة {0} من {1}", currentRound(), r.rounds)
     : L("{0} جولة", r.rounds);
   $("runRight").textContent = L("باقي {0} من {1}", mmss(r.total - total), mmss(r.total));
+
+  /* قرص المرحلة: الحلقة = ما تبقى من التمرين الحالي.
+     مجموعات الأوزان بلا عدّ تنازلي فتبقى الحلقة كاملة وباهتة */
+  const fg = $("dialFg");
+  if (fg){
+    const CIRC = 339.29;
+    const frac = (r.finished || lifting || !seg.dur) ? 1 : Math.max(0, Math.min(1, left / seg.dur));
+    fg.style.strokeDashoffset = (CIRC * (1 - frac)).toFixed(2);
+    fg.classList.toggle("idle", lifting);
+  }
 
   // climb the ridge
   const path = $("climbPath"), done = $("climbDone"), dot = $("climbDot");
@@ -1690,6 +1797,7 @@ function fastRender(){
 }
 
 $("btnFast").onclick = () => { fastRender(); $("fast").hidden = false; };
+$("hbMini").onclick = () => show("habits");
 $("fastNo").onclick  = () => { $("fast").hidden = true; };
 $("fast").addEventListener("click", e => { if (e.target.id === "fast") $("fastNo").click(); });
 $("fastGo").onclick  = () => { $("fast").hidden = true; startRun(fastPlan(fastPick)); };
@@ -2034,7 +2142,7 @@ $("bdNo").onclick = () => { $("bodySheet").hidden = true; };
 $("bodySheet").addEventListener("click", e => { if (e.target.id === "bodySheet") $("bodySheet").hidden = true; });
 
 const CTX = { S, toast, ask, dayKey, streakInfo, countStreak, restWeekdays, show, planRounds, planSeconds, addPlanCopy,
-              badgeCount, openRM, openBody, delBody };
+              badgeCount, openRM, openBody, delBody, ascent, ASCENT };
 initSocial(CTX);
 initProgress(CTX);
 initHabits(CTX);

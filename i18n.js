@@ -861,5 +861,23 @@ const EN = {
   "مثال: رقم الصفحة": "e.g. Page number",
   "احفظ الملاحظة": "Save note",
   "احذف الملاحظة": "Delete note",
-  "اليوم": "Today"
+  "اليوم": "Today",
+
+  /* ---- خط الارتفاع ومسار الصعود ---- */
+  "القاعدة": "Base",
+  "المعسكر": "Camp",
+  "القمة": "Summit",
+  "ارتفاعك": "Altitude",
+  "{0} م": "{0} m",
+  "{1} بعد {0} يوم": "{1} in {0} days",
+  "{0} بكرة": "{0} tomorrow",
+  "أول يوم يرفعك 100 م": "Your first day lifts you 100 m",
+  "وصلت القمة — استمر فوق السحاب": "Summit reached — keep climbing above the clouds",
+  "مسار الصعود: {0} يوم من {1}": "Ascent: {0} of {1} days",
+  "مسار الصعود": "Ascent",
+  "وصلت": "Reached",
+  "{0} يوم": "{0} days",
+  "عاداتك اليوم": "Today's habits",
+  "عاداتك اليوم · {0}": "Today's habits · {0}",
+  "خاصة بك وحدك": "Private to you"
 };

@@ -461,6 +461,32 @@ function kpisHTML(){
 }
 
 /* ============================================================
+   مسار الصعود — نفس محطات «خط الارتفاع» في الرئيسية
+   ============================================================
+   يتبع السلسلة الحالية لا أطول سلسلة: تنكسر فتبدأ الصعود من جديد.
+   الشارات تحت تحفظ أعلى ما وصلت إليه. */
+function summitsHTML(){
+  const n = C.streakInfo().current;
+  const a = C.ascent(n);
+  return `
+    <div class="card summits">
+      <div class="head-row"><h3>${L("مسار الصعود")}</h3>
+        <span class="count">${L("ارتفاعك")} ${esc(L("{0} م", Number(a.meters).toLocaleString(LOC())))}</span></div>
+      <div class="sm-row">` + C.ASCENT.map(s => {
+        const on = n >= s.d, nx = a.next === s;
+        const pct = Math.min(100, Math.round(n / s.d * 100));
+        return `
+        <div class="sm${on ? " on" : nx ? " next" : ""}">
+          <svg class="ic sm-ic" aria-hidden="true"><use href="#i-home"/></svg>
+          <b>${esc(L(s.name))}</b>
+          <span>${on ? L("وصلت") : nx ? L("{0} من {1}", n, s.d) : L("{0} يوم", s.d)}</span>
+          ${nx ? `<i class="bg-bar" role="progressbar" aria-valuemin="0" aria-valuemax="${s.d}" aria-valuenow="${n}"><u style="width:${pct}%"></u></i>` : ""}
+        </div>`;
+      }).join("") + `</div>
+    </div>`;
+}
+
+/* ============================================================
    العرض
    ============================================================ */
 export function renderProgress(){
@@ -468,10 +494,10 @@ export function renderProgress(){
   if (!box) return;
   const done = monthSessions();
   if (!done.length){
-    box.innerHTML = `<p class="empty">${L("ما سجّلت تمريناً هذا الشهر بعد — أول تمرين يبدأ العدّاد.")}</p>`
+    box.innerHTML = summitsHTML() + `<p class="empty">${L("ما سجّلت تمريناً هذا الشهر بعد — أول تمرين يبدأ العدّاد.")}</p>`
       + bodyHTML() + healthHTML() + badgesHTML();
   } else {
-    box.innerHTML = kpisHTML() + columnsHTML() + bodyHTML() + healthHTML()
+    box.innerHTML = summitsHTML() + kpisHTML() + columnsHTML() + bodyHTML() + healthHTML()
                   + liftsHTML() + plansHTML() + badgesHTML();
   }
   wireTips(box);
