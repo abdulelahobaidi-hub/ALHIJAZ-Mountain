@@ -9,7 +9,7 @@ const HOME = "https://www.mountains-fit.online/";
    التخزين: «الشبكة أولاً» — التحديث يصل فوراً، والنسخة المخزّنة
    احتياط عند انقطاع الاتصال أو بطئه.
    ============================================================ */
-const CACHE = "hejaz-shell-v3";
+const CACHE = "hejaz-shell-v4";
 /* حزمة فايربيس تُنزَّل من gstatic في كل إقلاع بارد (~300KB).
    محتواها ثابت لأن الرابط مثبّت على رقم إصدار، فنخزّنها ونخدمها
    من التخزين مباشرة: أكبر توفير في زمن فتح التطبيق. */
@@ -17,7 +17,7 @@ const VENDOR = /^https:\/\/www\.gstatic\.com\/firebasejs\/|^https:\/\/fonts\.gst
 const SLOW  = 3500;                       // ننتظر الشبكة هذا القدر ثم نرجع للمخزّن
 const SHELL = [
   "./", "./index.html", "./styles.css", "./app.js", "./ex.js", "./i18n.js",
-  "./social.js", "./progress.js", "./share.js", "./push.js",
+  "./social.js", "./progress.js", "./share.js", "./push.js", "./habits.js", "./breath.js",
   "./firebase-config.js", "./manifest.webmanifest",
   "./icon-192.png", "./icon-512.png", "./icon-maskable.png", "./hero.jpg"
 ];

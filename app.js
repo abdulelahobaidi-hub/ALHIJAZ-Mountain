@@ -13,6 +13,7 @@ import { shareCard } from "./share.js";
 import { initPush, renderPush, wirePush } from "./push.js";
 import { SHOTS } from "./ex.js";
 import { initHabits, loadHabits, renderHabits, HABITS_LK } from "./habits.js";
+import { initBreath, loadBreaths, renderBreath, breathShown, breathTeardown, paintMeta, BREATH_LK } from "./breath.js";
 
 translateStatic();
 
@@ -87,6 +88,7 @@ const S = {
   bodyInfo: { height: 0, sex: "" },                // الطول والجنس — ثابتان
   mine: [],                                        // تمارين حفظها المستخدم لتكرارها
   habits: [],                                      // العادات اليومية — خاصة بصاحبها
+  breaths: [],                                     // جلسات التنفس العميق — خاصة بصاحبها
   about: ""                                        // نبذة قصيرة يشوفها أصدقاؤك
 };
 
@@ -175,7 +177,7 @@ const LK = { plans:"hejaz.plans", sessions:"hejaz.sessions", mode:"hejaz.mode", 
 /* مفاتيح بيانات المستخدم — تُمسح عند الخروج أو عند دخول حساب آخر.
    السِمة واللغة والخيارات تفضيلات جهاز، فتبقى. */
 const DATA_KEYS = [LK.plans, LK.sessions, LK.freeze, LK.week, LK.body,
-                   LK.me, LK.bodyInfo, LK.mine, LK.owner, HABITS_LK];
+                   LK.me, LK.bodyInfo, LK.mine, LK.owner, HABITS_LK, BREATH_LK];
 function wipeLocalData(){
   DATA_KEYS.forEach(k => { try { localStorage.removeItem(k); } catch(e){} });
 }
@@ -204,6 +206,7 @@ async function loadAll(){
   let me     = lsGet(LK.me, null);
   /* العادات تُحمَّل بالتوازي مع الباقي */
   const habitsLoad = loadHabits();
+  const breathsLoad = loadBreaths();
 
   if (S.mode === "cloud" && S.fb){
     const { db, m } = S.fb;
@@ -250,6 +253,7 @@ async function loadAll(){
   }
 
   await habitsLoad;
+  await breathsLoad;
   if (!Array.isArray(S.week) || S.week.length !== 7) S.week = ["","","","","","",""];
   if (!Array.isArray(S.mine)) S.mine = [];
   S.body.sort((a,b) => b.at - a.at);
@@ -567,9 +571,10 @@ async function signOutNow(){
   if (S.mode === "cloud" && S.fb){
     try { await S.fb.authM.signOut(S.fb.auth); } catch(e){}
   }
-  S.mode = null; S.user = null; S.plans = []; S.sessions = [];
+  S.mode = null; S.user = null; S.plans = []; S.sessions = []; S.breaths = [];
   socialTeardown();
   stopTimer();
+  breathTeardown(); applyTheme();
   $("app").hidden = true; $("gate").hidden = false;
   $("gateNote").textContent = "";
   resetMailForm();
@@ -889,7 +894,7 @@ async function refreshStreak(){
    VIEWS
    ============================================================ */
 function show(view){
-  ["home","plans","build","log","run","habits","club","group","friend","dm"].forEach(v => {
+  ["home","plans","build","log","run","habits","breath","club","group","friend","dm"].forEach(v => {
     const el = $("v-" + v); if (el) el.hidden = (v !== view);
   });
   const clubish = ["group","friend","dm"].includes(view);
@@ -900,6 +905,8 @@ function show(view){
   if (view === "log"){ renderProgress(); renderLog(); }
   if (view === "club") renderClub();
   if (view === "habits") renderHabits();
+  breathShown(view === "breath");          // لوحة ألوان التنفس للصفحة كلها
+  if (view === "breath") renderBreath();
   window.scrollTo(0, 0);
 }
 
@@ -2058,6 +2065,7 @@ function applyTheme(){
   document.documentElement.dataset.theme = dark ? "dark" : "light";
   const m = document.querySelector('meta[name="theme-color"]');
   if (m) m.content = dark ? "#150E15" : "#FFF6EF";
+  paintMeta();                              // داخل تبويب التنفس: لون شريط الحالة من لوحته
   document.querySelectorAll("#themeSeg button").forEach(b =>
     b.classList.toggle("on", b.dataset.theme === pref));
 }
@@ -2146,6 +2154,7 @@ const CTX = { S, toast, ask, dayKey, streakInfo, countStreak, restWeekdays, show
 initSocial(CTX);
 initProgress(CTX);
 initHabits(CTX);
+initBreath(CTX);
 initPush(CTX);
 wirePush();
 
