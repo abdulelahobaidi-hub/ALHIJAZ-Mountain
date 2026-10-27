@@ -999,5 +999,12 @@ const EN = {
   "احبس النفس واشعر بالأكسجين يملأ جسمك.": "Hold it and feel the oxygen fill your body.",
   "استعد للجولة التالية.": "Get ready for the next round.",
   "استرخِ": "Relax",
-  "تنفّس طبيعياً واسترخِ، ولاحظ إحساس جسمك.": "Breathe normally, relax, and notice how your body feels."
+  "تنفّس طبيعياً واسترخِ، ولاحظ إحساس جسمك.": "Breathe normally, relax, and notice how your body feels.",
+  "خذ وضعية مريحة": "Get comfortable",
+  "جالساً": "Sitting",
+  "أو": "or",
+  "مستلقياً": "Lying down",
+  "أرخِ كتفيك وفكّك": "Relax your shoulders and jaw",
+  "الجولة": "Round",
+  "تنفّس طبيعياً": "Breathe normally"
 };

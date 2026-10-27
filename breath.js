@@ -263,68 +263,107 @@ function keepAwake(on){
 }
 
 /* ============================================================
-   خلفية المشكال — بقع فيروزية وزرقاء تتحرك ببطء وتنعكس ١٢ مرة
+   الخلفية — ماندالا ضوء مائي (WebGL)
+   انعكاسات ضوء على الماء تُطوى ١٢ مرة حول المركز، وتتسع وتضيء قليلاً مع
+   الشهيق. تُرسم بدقة الشاشة فتبقى حادة وناعمة — بلا نقاط ولا ضبابية.
+   إن لم يتوفر WebGL تبقى خلفية متدرجة ثابتة من CSS.
    ============================================================ */
-const KAL_SRC = 200;
-/* مشكال مائي: بقع فيروزية متداخلة تغطي نصف الأزرق تقريباً، وخلايا كحلية بينها،
-   تنعكس ١٢ مرة وتتكرر في حلقات حول المركز — مثل خلفية الفيديو */
-const KAL_BASE = "#2378DE";
-const KAL_LIGHT = ["rgba(96,226,255,", "rgba(150,240,255,", "rgba(62,200,250,", "rgba(185,248,255,"];
-const KAL_DARK  = ["rgba(10,48,160,", "rgba(16,70,190,"];
-function rnd(seed){ let s = seed; return () => (s = (s * 16807) % 2147483647) / 2147483647; }
+const WATER_FS = `#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#else
+precision mediump float;
+#endif
+uniform vec2 uR; uniform float uT; uniform float uB;
+const vec3 DEEP=vec3(0.020,0.067,0.215);
+const vec3 ROYAL=vec3(0.063,0.235,0.650);
+const vec3 AZURE=vec3(0.118,0.443,0.882);
+const vec3 CYAN=vec3(0.380,0.850,1.000);
+const vec3 ICE=vec3(0.900,0.985,1.000);
+float caustic(vec2 uv, float t){
+  vec2 p=mod(uv*6.2831853,6.2831853)-250.;
+  vec2 i=p; float c=1.; const float inten=.0055;
+  for(int n=0;n<4;n++){
+    float tt=t*(1.-3.5/float(n+1));
+    i=p+vec2(cos(tt-i.x)+sin(tt+i.y), sin(tt-i.y)+cos(tt+i.x));
+    c+=1./length(vec2(p.x/(sin(i.x+tt)/inten), p.y/(cos(i.y+tt)/inten)));
+  }
+  c/=4.; c=1.17-pow(c,1.4);
+  return clamp(pow(abs(c),7.),0.,1.);
+}
+void main(){
+  vec2 p=(gl_FragCoord.xy-.5*uR)/min(uR.x,uR.y);
+  p*=1.0-0.05*uB;
+  float r=length(p);
+  float a=atan(p.y,p.x)+uT*.01;
+  const float N=12.; float seg=6.2831853/N;
+  a=mod(a,seg); a=abs(a-seg*.5);
+  vec2 q=r*vec2(cos(a),sin(a));
+  float t=uT*.18+23.;
+  float c=caustic(q*.62+vec2(.13,.29), t);
+  float c2=caustic(q*1.1+vec2(.71,.05), t*.7+5.);
+  vec3 base=mix(AZURE,ROYAL,smoothstep(.0,1.1,r));
+  vec3 col=base;
+  col=mix(col,CYAN,clamp(c*1.1+c2*.5,0.,1.)*.85);
+  col=mix(col,ICE,pow(c,2.2)*.55);
+  float v=smoothstep(1.6,.25,r);
+  col=mix(DEEP,col,.25+.75*v);
+  col+=CYAN*(.06+.14*uB)*exp(-r*r*4.);
+  gl_FragColor=vec4(col,1.);
+}
+`;
+const WATER_VS = "attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}";
 
-function makeKaleido(cv, seed = 7){
-  const src = document.createElement("canvas");
-  src.width = src.height = KAL_SRC;
-  const sx = src.getContext("2d"), cx = cv.getContext("2d");
-  const r = rnd(seed);
-  const mk = (n, cols, r0, r1, a) => Array.from({ length:n }, (_, i) => ({
-    x: r(), y: r(), rad: r0 + r() * (r1 - r0), c: cols[i % cols.length], a,
-    ph: r() * 6.28, sp: .05 + r() * .12, ax: .04 + r() * .12, ay: .04 + r() * .12
-  }));
-  const dark = mk(14, KAL_DARK, .06, .13, .75);
-  const light = mk(40, KAL_LIGHT, .07, .17, .85);
-  const spark = mk(9, ["rgba(225,252,255,"], .02, .045, .7);
+function makeWater(cv, keep = false){
+  let gl = null;
+  try { gl = cv.getContext("webgl", { antialias:false, alpha:false, preserveDrawingBuffer:keep, powerPreference:"low-power" }); } catch(e){}
+  if (!gl) return null;
+  const sh = (type, src) => {
+    const o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o);
+    if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(o));
+    return o;
+  };
+  let pr;
+  try {
+    pr = gl.createProgram();
+    gl.attachShader(pr, sh(gl.VERTEX_SHADER, WATER_VS));
+    gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, WATER_FS));
+    gl.linkProgram(pr);
+    if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) throw new Error("link");
+  } catch(e){ console.warn("breath bg", e); return null; }
+  gl.useProgram(pr);
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+  const loc = gl.getAttribLocation(pr, "p");
+  gl.enableVertexAttribArray(loc);
+  gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+  const uR = gl.getUniformLocation(pr, "uR"), uT = gl.getUniformLocation(pr, "uT"), uB = gl.getUniformLocation(pr, "uB");
   let w = 0, h = 0;
+  function draw(t, breath){
+    const k = Math.min(window.devicePixelRatio || 1, 1.5);
+    const nw = Math.max(2, Math.round((cv.clientWidth || 360) * k)), nh = Math.max(2, Math.round((cv.clientHeight || 640) * k));
+    if (nw !== w || nh !== h){ w = cv.width = nw; h = cv.height = nh; gl.viewport(0, 0, w, h); }
+    gl.uniform2f(uR, w, h); gl.uniform1f(uT, t); gl.uniform1f(uB, breath || 0);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
+  function free(){ try { const x = gl.getExtension("WEBGL_lose_context"); x && x.loseContext(); } catch(e){} }
+  return { draw, free };
+}
 
-  function fit(){
-    const bw = cv.clientWidth || 360, bh = cv.clientHeight || 640;
-    const k = Math.min(1, 560 / Math.max(bw, bh));          // دقة منخفضة: الخلفية ناعمة أصلاً
-    const nw = Math.max(2, Math.round(bw * k)), nh = Math.max(2, Math.round(bh * k));
-    if (nw !== w || nh !== h){ w = cv.width = nw; h = cv.height = nh; }
-  }
-  function paint(list, t){
-    for (const b of list){
-      /* البقعة تلتف حول حدود المصدر حتى لا تنقطع الحلقات */
-      const x = ((b.x + Math.sin(t * b.sp + b.ph) * b.ax) % 1 + 1) % 1 * KAL_SRC;
-      const y = ((b.y + Math.cos(t * b.sp * .8 + b.ph) * b.ay) % 1 + 1) % 1 * KAL_SRC;
-      const rr = b.rad * KAL_SRC;
-      const g = sx.createRadialGradient(x, y, 0, x, y, rr);
-      g.addColorStop(0, b.c + b.a + ")"); g.addColorStop(.5, b.c + (b.a * .6).toFixed(2) + ")"); g.addColorStop(1, b.c + "0)");
-      sx.fillStyle = g; sx.beginPath(); sx.arc(x, y, rr, 0, 6.2832); sx.fill();
-    }
-  }
-  function draw(t){
-    fit();
-    sx.fillStyle = KAL_BASE;
-    sx.fillRect(0, 0, KAL_SRC, KAL_SRC);
-    paint(dark, t); paint(light, t); paint(spark, t);
-    /* ١٢ قطعة: كل قطعة صورة مرآة لجارتها، والمصدر يتكرر ٣ مرات على طول نصف القطر */
-    const N = 12, A = 2 * Math.PI / N, Rr = Math.hypot(w, h) / 2 + 2, T = Rr * .4;
-    cx.save();
-    cx.fillStyle = KAL_BASE; cx.fillRect(0, 0, w, h);
-    cx.translate(w / 2, h / 2);
-    cx.rotate(t * .02);
-    for (let k = 0; k < N; k++){
-      cx.save();
-      if (k % 2){ cx.rotate((k + 1) * A); cx.scale(1, -1); } else cx.rotate(k * A);
-      cx.beginPath(); cx.moveTo(0, 0); cx.arc(0, 0, Rr, -.004, A + .004); cx.closePath(); cx.clip();
-      for (let j = 0; j < 3; j++) cx.drawImage(src, j * T * .92, 0, T, T);
-      cx.restore();
-    }
-    cx.restore();
-  }
-  return { draw };
+/* صورة ثابتة من الخلفية لبطاقة البداية — تُرسم مرة واحدة وتُحفظ */
+let heroBg = null;
+function heroImage(){
+  if (heroBg !== null) return heroBg;
+  heroBg = "";
+  try {
+    const cv = document.createElement("canvas");
+    cv.style.cssText = "position:fixed;left:-9999px;width:520px;height:420px";
+    document.body.appendChild(cv);
+    const wt = makeWater(cv, true);
+    if (wt){ wt.draw(64, .3); heroBg = cv.toDataURL("image/jpeg", .86); wt.free(); }
+    cv.remove();
+  } catch(e){ heroBg = ""; }
+  return heroBg;
 }
 
 /* ============================================================
@@ -345,30 +384,35 @@ function rhex(Rr, cut, rotDeg){
   }
   return p + "Z";
 }
-/* الطبقات من الخارج للداخل: اللون، حجمها والشكل نقطة، حجمها والشكل كامل، اتجاه دورانها */
+/* طبقات السداسي من الخارج للداخل: معرّف التدرّج، حجمها والشكل نقطة، حجمها والشكل كامل.
+   الطبقات تلتف كلها في اتجاه واحد وبنسب متدرجة وهي صغيرة، وتستقيم معاً كلما امتلأ —
+   فتنفتح مثل بتلات منتظمة لا تهتز. */
 const HEX_LAYERS = [
-  ["#E3751D", 1,   1,    1  ],
-  ["#F39A33", .84, .972, -.6],
-  ["#FAC76C", .72, .952, .45],
-  ["url(#brCream)", .58, .935, -.2]
+  ["hxA", 1,   1   ],
+  ["hxB", .84, .972],
+  ["hxC", .71, .95 ],
+  ["hxD", .57, .93 ]
 ];
-const HEX_MIN = 13, HEX_MAX = 108;
+const HEX_MIN = 13, HEX_MAX = 108, HEX_TURN = [0, 7, 14, 21];
+const HEX_DEFS = (pre) => `
+  <linearGradient id="${pre}hxA" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F7A245"/><stop offset="1" stop-color="#D9631A"/></linearGradient>
+  <linearGradient id="${pre}hxB" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFC06A"/><stop offset="1" stop-color="#F08A2C"/></linearGradient>
+  <linearGradient id="${pre}hxC" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE3A4"/><stop offset="1" stop-color="#F9BC5E"/></linearGradient>
+  <radialGradient id="${pre}hxD" cx=".5" cy=".3" r=".8"><stop offset="0" stop-color="#FFFDF4"/><stop offset=".7" stop-color="#FFF1CC"/><stop offset="1" stop-color="#FFE3A2"/></radialGradient>`;
 
-/* s: الحجم من ٠ (نقطة) إلى ١ (كامل) — dir: اتجاه الحركة لتفريق الطبقات أثناءها */
-function hexPaths(s, dir = 1){
+/* s: الحجم من ٠ (نقطة) إلى ١ (كامل) */
+function hexPaths(s){
   s = clamp(s, 0, 1);
   const R0 = lerp(HEX_MIN, HEX_MAX, s);
-  const cut = lerp(.5, .07, Math.pow(s, .8));
-  const twist = 17 * Math.sin(Math.PI * s) * dir;
-  return HEX_LAYERS.map(([, a, b, k]) => rhex(R0 * lerp(a, b, s), cut, twist * k));
+  const cut = lerp(.5, .075, Math.pow(s, .75));
+  const turn = 1 - ease(s);
+  return HEX_LAYERS.map(([, a, b], i) => rhex(R0 * lerp(a, b, s), cut, HEX_TURN[i] * turn));
 }
-function hexSVG(s, dir, num, cls = ""){
-  const d = hexPaths(s, dir);
+function hexSVG(s, cls, pre){
+  const d = hexPaths(s);
   return `<svg class="${cls}" viewBox="-120 -120 240 240" aria-hidden="true">
-    <defs><linearGradient id="brCream${cls ? "-" + cls : ""}" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#FFF9E3"/><stop offset="1" stop-color="#FFE7A8"/></linearGradient></defs>
-    ${HEX_LAYERS.map(([c], i) => `<path d="${d[i]}" fill="${c.replace("brCream", "brCream" + (cls ? "-" + cls : ""))}"/>`).join("")}
-    ${num != null ? `<text class="br-hnum" x="0" y="2" font-size="${f1(14 + 58 * s)}">${num}</text>` : ""}
+    <defs>${HEX_DEFS(pre)}</defs>
+    ${HEX_LAYERS.map(([g], i) => `<path d="${d[i]}" fill="url(#${pre}${g})"/>`).join("")}
   </svg>`;
 }
 
@@ -379,25 +423,23 @@ function sector(Rr, deg){
   const a = (-90 - deg) * Math.PI / 180;
   return `M0 0L0 ${-Rr}A${Rr} ${Rr} 0 ${deg > 180 ? 1 : 0} 0 ${f1(Rr * Math.cos(a))} ${f1(Rr * Math.sin(a))}Z`;
 }
-/* طبقات المروحة من الخارج للداخل: نصف القطر، اللون، تأخّر الحافة بالدرجات */
-const FAN_LAYERS = [[96, "rgba(214,220,255,.93)", 0], [80, "rgba(178,188,255,.95)", 3],
-                    [63, "#8F9CFA", 6], [46, "#5567F0", 9]];
+/* طبقات المروحة من الخارج للداخل: نصف القطر، معرّف التدرّج، تأخّر الحافة بالدرجات */
+const FAN_LAYERS = [[96, "fnA", 0], [80, "fnB", 2.5], [63, "fnC", 5], [46, "fnD", 7.5]];
+const FAN_DEFS = `
+  <radialGradient id="fnA" cx="0" cy="0" r="96" gradientUnits="userSpaceOnUse"><stop offset=".5" stop-color="#E9ECFF" stop-opacity=".55"/><stop offset="1" stop-color="#F3F5FF" stop-opacity=".92"/></radialGradient>
+  <radialGradient id="fnB" cx="0" cy="0" r="80" gradientUnits="userSpaceOnUse"><stop offset=".4" stop-color="#C3CBFF" stop-opacity=".7"/><stop offset="1" stop-color="#CDD4FF" stop-opacity=".96"/></radialGradient>
+  <radialGradient id="fnC" cx="0" cy="0" r="63" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#8291FA"/><stop offset="1" stop-color="#9DA9FF"/></radialGradient>
+  <radialGradient id="fnD" cx="0" cy="0" r="46" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#3B4BDB"/><stop offset="1" stop-color="#5E6DF4"/></radialGradient>`;
 
 /* ============================================================
-   الأيقونات — رسومات بسيطة مرسومة لهذا التطبيق
+   الأيقونات — Material Symbols Rounded (وزن 300) من Google، رخصة Apache 2.0
    ============================================================ */
+const MS = d => `<svg viewBox="0 -960 960 960" aria-hidden="true"><path d="${d}"/></svg>`;
 const ICON = {
-  lungs: `<svg viewBox="-40 -38 80 76" aria-hidden="true">
-    <path d="M-3.2-34h6.4v19.5l10.5 8.3-3.4 4.3L0-9.6-10.3-1.9l-3.4-4.3L-3.2-14.5Z"/>
-    <path d="M-8.5-14.5C-21-22-36-6-36 13.5-36 30-25 35.5-12.5 31-6 28.6-5 22.6-5 15.5V-4.5Z"/>
-    <path d="M8.5-14.5C21-22 36-6 36 13.5 36 30 25 35.5 12.5 31 6 28.6 5 22.6 5 15.5V-4.5Z"/></svg>`,
-  sit: `<svg viewBox="-40 -38 80 72" aria-hidden="true">
-    <circle cx="0" cy="-26" r="7.8"/>
-    <path d="M-10.5-14.5Q0-18.5 10.5-14.5L13.5 5Q21 3 26.5 10.5 22 15 13 13.5H-13Q-22 15-26.5 10.5-21 3-13.5 5Z"/>
-    <path d="M-33 19Q-16 9 0 14.5 16 9 33 19 31 28 15 27L0 22.5-15 27Q-31 28-33 19Z"/></svg>`,
-  lie: `<svg viewBox="-52 -16 104 32" aria-hidden="true">
-    <circle cx="-40" cy="-2.5" r="6.5"/>
-    <path d="M-31-7Q-20-10.5-5-8.5L22-7.5Q35-7.5 44-4 48.5-1.5 46 2 35 3.5 22 3.2L-5 4.2Q-20 6.5-31 3.3Z"/></svg>`
+  lungs: MS("m480-528-88.39 88q-6.64 6.69-15.78 6.5-9.14-.19-15.83-6.9-6.69-6.7-6.69-15.92 0-9.22 6.69-15.91l97.31-97.08v-278q0-9.64 6.58-16.17 6.58-6.52 16.31-6.52 9.72 0 16.11 6.52 6.38 6.53 6.38 16.17v278.13L600-471.61q6.69 6.64 6.5 15.78-.19 9.14-6.9 15.83-6.7 6.69-15.92 6.69-9.22 0-15.91-6.69L480-528ZM202.69-130q-42.92 0-72.8-29.89Q100-189.77 100-232.69v-167.46q0-5 .81-10.12.81-5.11 3.19-10.11L203.39-679q12.38-32.15 40.18-51.58Q271.36-750 305.08-750q40.15 0 68.88 27.09 28.73 27.09 28.73 66.6v45.93q0 9.64-6.58 16.16-6.58 6.53-16.3 6.53-9.73 0-16.12-6.53-6.38-6.52-6.38-16.16v-45.93q0-20.68-15.94-34.49-15.94-13.82-37.2-13.82-20.02 0-35.67 11.31-15.65 11.31-22.58 29.7L145.39-403.85v171.16q0 24.35 16.47 40.83 16.48 16.48 40.83 16.48H337.3q24.34 0 40.83-16.48t16.49-40.83v-50q0-9.65 6.58-16.17 6.58-6.53 16.3-6.53 9.73 0 16.12 6.53 6.38 6.52 6.38 16.17v50q0 42.92-30.18 72.8Q379.65-130 337.31-130H202.69Zm554.62 0H622.69q-42.79 0-72.74-29.89Q520-189.77 520-232.69v-50q0-9.65 6.58-16.17 6.58-6.53 16.31-6.53 9.72 0 16.11 6.53 6.38 6.52 6.38 16.17v50q0 24.35 16.48 40.83 16.48 16.48 40.83 16.48H757.3q24.33 0 40.82-16.48 16.49-16.48 16.49-40.83v-171.16L713.69-663.61q-6.92-18.39-22.38-29.7-15.46-11.31-35.33-11.31-21.14 0-37.21 13.82-16.08 13.81-16.08 34.49v45.93q0 9.64-6.58 16.16-6.58 6.53-16.31 6.53-9.72 0-16.11-6.53-6.38-6.52-6.38-16.16v-45.93q0-39.51 28.76-66.6Q614.84-750 655.16-750q33.84 0 61.45 19.42 27.62 19.43 39.62 51.58l100.15 258.62q2 5 2.81 10.11.81 5.12.81 10.12v167.46q0 42.92-29.97 72.8Q800.06-130 757.31-130ZM360-440.39Zm239.61.39Z"),
+  sit:   MS("M264.08-173.85q-23.31 0-38.39-14.3-15.07-14.31-15.07-37.24 0-16.07 8.23-29.88 8.23-13.81 23.3-19.65l173.54-68.77v-154.93q-66.54 79.93-125.15 119.97-58.62 40.03-134.39 48.96-8.92 1.61-16-5.27-7.07-6.89-7.07-16.42 0-9.7 6.77-16.39 6.77-6.69 16.07-8.31 56.85-7 106.04-37 49.19-30 90.35-80.61l57.23-63.85q8.46-10.84 20.81-17.88 12.34-7.04 26.8-7.04h45.7q14.46 0 27.11 7.04 12.65 7.04 21.5 17.88l56.85 63.85q42.77 49.38 91.15 80 48.39 30.61 104.62 37.61 9.3 1.62 16.07 8.31t6.77 16.39q0 9.53-7.07 16.42-7.08 6.88-16 5.27-75.77-8.93-134.39-48.96-58.61-40.04-125.15-119.97v154.93l173.54 68.77q15.07 5.84 23.3 19.65 8.23 13.81 8.23 29.88 0 22.93-15.07 37.24-15.08 14.3-38.39 14.3H397.15v-6.38q0-24.85 14.47-39.5 14.46-14.66 39.3-14.66h134.16q8.38 0 14.19-5.8 5.81-5.81 5.81-14.2 0-8.38-5.81-14.19-5.81-5.81-14.19-5.81H450.92q-42.07 0-67.3 25.85-25.24 25.85-25.24 68.31v6.38h-94.3ZM480-644.77q-28.46 0-48.62-20.15-20.15-20.16-20.15-48.62 0-28.46 20.15-48.61 20.16-20.16 48.62-20.16 28.46 0 48.62 20.16 20.15 20.15 20.15 48.61t-20.15 48.62q-20.16 20.15-48.62 20.15Z"),
+  lie:   MS("M399.62-420q-12.26 0-20.56-8.29-8.29-8.3-8.29-20.56v-165q0-18.98 13.59-32.56Q397.94-660 416.92-660h298q55.86 0 94.78 38.8 38.91 38.81 38.91 94.51v77.84q0 12.26-8.48 20.56-8.48 8.29-20.36 8.29H399.62Zm16.53-194.61v149.22-149.22Zm410.39 309.99H133.46q-9.64 0-16.16-6.58-6.53-6.58-6.53-16.3 0-9.73 6.53-16.12 6.52-6.38 16.16-6.38h693.08q9.64 0 16.16 6.58 6.53 6.58 6.53 16.31 0 9.72-6.53 16.11-6.52 6.38-16.16 6.38ZM213.08-420q-43.08 0-72.69-29.62-29.62-29.61-29.62-72.69 0-43.07 29.62-72.69 29.61-29.61 72.69-29.61 43.07 0 72.69 29.61 29.61 29.62 29.61 72.69 0 43.08-29.61 72.69Q256.15-420 213.08-420Zm-.02-45.39q24.19 0 40.57-16.36Q270-498.11 270-522.29q0-24.19-16.36-40.57-16.36-16.37-40.55-16.37-24.19 0-40.56 16.36t-16.37 40.55q0 24.19 16.36 40.56t40.54 16.37Zm203.09 0h387.08v-61.3q0-36-25.94-61.96t-62.37-25.96H416.15v149.22Zm-203.07-56.92Z"),
+  spa:   MS("M457.77-105.16q-63.62-11.23-126.38-43.26-62.77-32.04-112.39-86.35-49.61-54.31-80.07-131.77-30.47-77.46-30.47-181.15v-8.46q0-10.23 7.54-17.77 7.54-7.54 17.77-7.54h7.69q48 0 108.2 21.85 60.19 21.84 102.73 53.84 5.69-74 34.23-154.27 28.53-80.26 71.46-143.42 8.84-12.84 21.92-12.84 13.08 0 21.92 12.84 42.93 63.16 71.46 143.81Q601.92-579 607.61-505q41.39-29.23 100.81-52.27 59.42-23.04 109.35-24.19l9.61-.38q9.85-.39 17.39 7.15 7.54 7.54 7.15 17.38l-.38 10.39q-2.7 93.69-29.12 167.5Q796-305.62 751-250.92q-45 54.69-105.46 90.76-60.46 36.08-130.23 53.08-11.77 3.16-28.77 3.73-17 .58-28.77-1.81ZM493-146.77Q482-326 387-419.31q-95-93.3-232.54-116.15h-.19.19Q166.69-350.62 264.39-258 362.08-165.39 493-146.77q1 1-.5.5t.5-.5Zm-96.08-327.92q23 20 45.54 50.19 22.54 30.19 36.92 56.58 13.24-26.77 36.97-56.77 23.73-30 46.73-50 3.84-66.23-20.31-137.42-24.15-71.2-62.77-142.5-.62-.62 0 .19t0-.19q-39.23 71.92-63.08 142.3-23.84 70.39-20 137.62ZM504.54-317q12 36.46 20.42 72.08 8.42 35.61 13.42 83.46 48.93-17.77 94.93-46.46 46-28.7 82.34-73.54 36.35-44.85 60.5-107.35 24.16-62.5 29.39-146.65 0-1.62 0 0 0 1.61 0 0-104.46 15.85-185.08 74.73Q539.85-401.85 504.54-317Z")
 };
 
 /* ============================================================
@@ -407,8 +449,9 @@ const ICON = {
    الزمن يُحسب من ساعة الجهاز، فلا ينحرف لو تأخّر الرسم. */
 let R = null;          // الجلسة الجارية
 let raf = 0;
-let kal = null;        // خلفية المشكال للجلسة
-let kalLast = 0;
+let water = null;      // خلفية الماندالا للجلسة
+let waterLast = 0;
+let glow = 0, glowTo = 0; // إضاءة الخلفية: تتبع حجم السداسي بنعومة
 let shown = SHOW;      // عدد الجلسات الظاهرة في السجل
 let howOpen = false;   // حالة «كيف تعمل»
 const reduceMotion = () => { try { return matchMedia("(prefers-reduced-motion: reduce)").matches; } catch(e){ return false; } };
@@ -450,7 +493,11 @@ function loop(){
     step();
     /* الخلفية ٣٠ إطاراً في الثانية — ونادراً جداً مع «تقليل الحركة» */
     const gap = reduceMotion() ? 2000 : 33;
-    if (kal && now - kalLast >= gap){ kalLast = now; kal.draw(now / 1000); }
+    if (water && now - waterLast >= gap){
+      waterLast = now;
+      glow += (glowTo - glow) * .12;
+      water.draw(now / 1000, glow);
+    }
     raf = requestAnimationFrame(f);
   };
   R.last = performance.now();
@@ -566,7 +613,7 @@ function step(){
     }
     case "rest": {
       const left = REST - R.pt;
-      setPh("rest"); setMode("card"); setCard("lungs");
+      setPh("rest"); setMode("card"); setCard("rest");
       setTop(L("نهاية الجلسة بعد {0}", mmss(Math.max(0, left))));
       if (left <= 0) finish();
       break;
@@ -618,7 +665,8 @@ async function stopAsk(){
 }
 
 function unmountRun(){
-  kal = null;
+  if (water) water.free();
+  water = null;
   document.documentElement.classList.remove("br-lock");
   document.body.classList.remove("br-live");
   paintMeta();
@@ -683,19 +731,21 @@ function setCard(k, n){
   const key = k + (n || "");
   if (R.view.card === key) return;
   R.view.card = key;
+  if (k) glowTo = .35;
   document.querySelectorAll("#brStage .br-card").forEach(el => el.classList.toggle("on", el.dataset.card === k));
-  if (k === "round"){ const t = $("brCardRound"); if (t) t.textContent = L("الجولة {0}", n); }
+  if (k === "round"){ const t = $("brCardRound"); if (t) t.textContent = n; }
 }
 function setHex(s, dir, num, label, still){
-  const v = R.view, d = hexPaths(s, still ? 0 : dir);
+  const v = R.view, d = hexPaths(s);
+  glowTo = s;
   for (let i = 0; i < 4; i++){ const p = $("brH" + i); if (p) p.setAttribute("d", d[i]); }
   const nm = $("brNum"), lb = $("brLbl");
   const big = s > .6 && !!label;
   if (nm){
     const txt = num == null ? "" : String(num);
     if (v.num !== txt){ v.num = txt; nm.textContent = txt; }
-    nm.setAttribute("font-size", f1(big ? 60 : 14 + 58 * s));
-    nm.setAttribute("y", big ? "26" : "3");
+    nm.setAttribute("font-size", f1(big ? 58 : 13 + 61 * s));
+    nm.setAttribute("y", big ? "24" : "2");
     nm.classList.toggle("rec", !!still);
   }
   if (lb){
@@ -705,6 +755,7 @@ function setHex(s, dir, num, label, still){
   }
 }
 function setFan(frac, time){
+  glowTo = 0;
   const deg = clamp(frac, 0, 1) * 360;
   for (let i = 0; i < FAN_LAYERS.length; i++){
     const [rr, , lag] = FAN_LAYERS[i], p = $("brF" + i);
@@ -745,32 +796,46 @@ function paintFrame(){
 function runHTML(){
   return `
   <div class="br-run" id="brRun" data-ph="ready">
-    <canvas class="br-kal" id="brKal" aria-hidden="true"></canvas>
-    <div class="br-vig" aria-hidden="true"></div>
+    <canvas class="br-bg" id="brBg" aria-hidden="true"></canvas>
     <div class="br-run-top">
       <span class="br-pill" id="brRound"></span>
       <span class="br-pill br-phase" id="brPhase"></span>
     </div>
     <div class="br-stage" id="brStage" data-mode="card" aria-live="off">
       <svg class="br-svg" viewBox="-120 -120 240 240" aria-hidden="true">
-        <defs><linearGradient id="brCream" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#FFF9E3"/><stop offset="1" stop-color="#FFE7A8"/></linearGradient></defs>
+        <defs>${HEX_DEFS("")}${FAN_DEFS}</defs>
         <g class="br-hex">
-          ${HEX_LAYERS.map(([col], i) => `<path id="brH${i}" fill="${col}"/>`).join("")}
+          ${HEX_LAYERS.map(([g], i) => `<path id="brH${i}" fill="url(#${g})"/>`).join("")}
           <text class="br-hlbl" id="brLbl" x="0" y="-30"></text>
-          <text class="br-hnum" id="brNum" x="0" y="3"></text>
+          <text class="br-hnum" id="brNum" x="0" y="2"></text>
         </g>
         <g class="br-fan">
-          ${FAN_LAYERS.map((l, i) => `<path id="brF${i}" fill="${l[1]}"/>`).join("")}
-          <circle class="br-pivot" cx="0" cy="0" r="8.5"/>
-          <text class="br-time" id="brTime" x="0" y="52"></text>
+          <circle class="br-track" cx="0" cy="0" r="96"/>
+          ${FAN_LAYERS.map((l, i) => `<path id="brF${i}" fill="url(#${l[1]})"/>`).join("")}
+          <circle class="br-pivot-glow" cx="0" cy="0" r="16"/>
+          <circle class="br-pivot" cx="0" cy="0" r="7.5"/>
         </g>
       </svg>
-      <div class="br-card" data-card="lungs"><span class="br-tile">${ICON.lungs}</span></div>
-      <div class="br-card br-two" data-card="posture">
-        <span class="br-tile">${ICON.sit}</span><span class="br-tile wide">${ICON.lie}</span>
+      <p class="br-time" id="brTime"></p>
+      <div class="br-card" data-card="lungs">
+        <span class="br-glasstile">${ICON.lungs}</span>
+        <p>${L("خذ وضعية مريحة")}</p>
       </div>
-      <div class="br-card" data-card="round"><span class="br-rtile" id="brCardRound"></span></div>
+      <div class="br-card" data-card="posture">
+        <div class="br-pair">
+          <span class="br-glasstile sm">${ICON.sit}<small>${L("جالساً")}</small></span>
+          <span class="br-or">${L("أو")}</span>
+          <span class="br-glasstile sm">${ICON.lie}<small>${L("مستلقياً")}</small></span>
+        </div>
+        <p>${L("أرخِ كتفيك وفكّك")}</p>
+      </div>
+      <div class="br-card" data-card="round">
+        <span class="br-roundcard"><small>${L("الجولة")}</small><b id="brCardRound"></b></span>
+      </div>
+      <div class="br-card" data-card="rest">
+        <span class="br-glasstile">${ICON.spa}</span>
+        <p>${L("تنفّس طبيعياً")}</p>
+      </div>
     </div>
     <p class="br-tip" id="brTip"></p>
     <div class="br-rounds" id="brRounds"></div>
@@ -789,10 +854,11 @@ function mountRun(){
   document.body.classList.add("br-live");
   paintMeta();
   R.view = {};
-  const cv = $("brKal");
-  kal = cv && cv.getContext ? makeKaleido(cv) : null;
-  kalLast = 0;
-  if (kal) kal.draw(performance.now() / 1000);
+  const cv = $("brBg");
+  water = cv ? makeWater(cv) : null;
+  if (!water && cv) cv.classList.add("flat");
+  waterLast = 0; glow = glowTo = .35;
+  if (water) water.draw(performance.now() / 1000, glow);
 }
 
 /* ============================================================
@@ -849,9 +915,8 @@ function setupHTML(){
     ? L("الجولة الأخيرة {0}", mmss(holdFor(cfg, cfg.rounds))) : "";
   return `
   <div class="br-hero">
-    <canvas class="br-hero-kal" id="brHeroKal" aria-hidden="true"></canvas>
-    <div class="br-hero-vig" aria-hidden="true"></div>
-    ${hexSVG(.62, 1, null, "br-hero-hex")}
+    <div class="br-hero-bg" id="brHeroBg" aria-hidden="true"></div>
+    ${hexSVG(.7, "br-hero-hex", "h-")}
     <div class="br-hero-tx">
       <span class="br-eyebrow">${L("طريقة ويم هوف")}</span>
       <h2>${L("التنفس العميق")}</h2>
@@ -973,7 +1038,7 @@ function doneHTML(sm){
              : sm.first ? L("أول جلسة — هذا رقمك اللي تتحداه") : L("أحسنت — انتهت الجلسة");
   return `
   <div class="card br-done">
-    ${hexSVG(.55, 1, null, "br-done-hex")}
+    ${hexSVG(.62, "br-done-hex", "d-")}
     <h2>${head}</h2>
     <p class="br-done-sub">${L("{0} جولات · {1}", s.holds.length, mmss(s.dur))}</p>
     <div class="br-cols">${colsHTML(s.holds, best, s.holds.map((_, i) => String(i + 1)))}</div>
@@ -1002,8 +1067,8 @@ export function renderBreath(){
     return;
   }
   box.innerHTML = setupHTML();
-  const hc = $("brHeroKal");
-  if (hc && hc.getContext){ try { makeKaleido(hc, 11).draw(40); } catch(e){} }
+  const hb = $("brHeroBg"), img = heroImage();
+  if (hb && img) hb.style.backgroundImage = `url(${img})`;
 }
 
 /* يُستدعى من show(): يلوّن الصفحة بلوحة التنفس ويوقف الجلسة مؤقتاً عند المغادرة */
