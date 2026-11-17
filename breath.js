@@ -39,10 +39,10 @@ const PACES = {
 const LIMITS = { rounds:[1,8,1], breaths:[15,60,5], hold:[30,300,15], recover:[10,30,5] };
 const STEPS  = [0, 15, 30];                         // زيادة الحبس المحدد كل جولة
 const PRESETS = [
-  { k:"basic",   name:"الأساسي",   cfg:{ rounds:3, breaths:30, pace:"slow", holdMode:"fixed", hold:30,  holdStep:30, recover:15 } },
-  { k:"easy",    name:"مبتدئ",     cfg:{ rounds:2, breaths:25, pace:"slow", holdMode:"free",  hold:60,  holdStep:0,  recover:15 } },
-  { k:"classic", name:"الكلاسيكي", cfg:{ rounds:3, breaths:30, pace:"mid",  holdMode:"free",  hold:90,  holdStep:0,  recover:15 } },
-  { k:"deep",    name:"متقدّم",    cfg:{ rounds:4, breaths:40, pace:"fast", holdMode:"free",  hold:120, holdStep:0,  recover:20 } }
+  { k:"basic",   name:"الأساسي",   lvl:1, desc:"مطابق لفيديو المبتدئين", cfg:{ rounds:3, breaths:30, pace:"slow", holdMode:"fixed", hold:30,  holdStep:30, recover:15 } },
+  { k:"easy",    name:"مبتدئ",     lvl:1, desc:"جولتان وحبس على راحتك", cfg:{ rounds:2, breaths:25, pace:"slow", holdMode:"free",  hold:60,  holdStep:0,  recover:15 } },
+  { k:"classic", name:"الكلاسيكي", lvl:2, desc:"٣ جولات وحبس حر", cfg:{ rounds:3, breaths:30, pace:"mid",  holdMode:"free",  hold:90,  holdStep:0,  recover:15 } },
+  { k:"deep",    name:"متقدّم",    lvl:3, desc:"٤ جولات × ٤٠ نفَس سريع", cfg:{ rounds:4, breaths:40, pace:"fast", holdMode:"free",  hold:120, holdStep:0,  recover:20 } }
 ];
 const DEF = { ...PRESETS[0].cfg, voice:true, tone:true, vibe:true };
 
@@ -357,7 +357,7 @@ function heroImage(){
   heroBg = "";
   try {
     const cv = document.createElement("canvas");
-    cv.style.cssText = "position:fixed;left:-9999px;width:520px;height:420px";
+    cv.style.cssText = "position:fixed;left:-9999px;width:640px;height:640px";
     document.body.appendChild(cv);
     const wt = makeWater(cv, true);
     if (wt){ wt.draw(64, .3); heroBg = cv.toDataURL("image/jpeg", .86); wt.free(); }
@@ -906,67 +906,159 @@ function summaryText(){
   return { name, line: L("{0} جولات × {1} نفَس", cfg.rounds, cfg.breaths), holds };
 }
 
+/* أيام فيها جلسة تنفّس، وسلسلة الأيام المتتالية منها */
+function breathDays(){ return new Set((C.S.breaths || []).map(b => C.dayKey(b.at))); }
+function breathStreak(){
+  const set = breathDays(); if (!set.size) return 0;
+  const d = new Date(); d.setHours(0,0,0,0);
+  if (!set.has(C.dayKey(d))) d.setDate(d.getDate() - 1);
+  let n = 0;
+  while (set.has(C.dayKey(d)) && n < 999){ n++; d.setDate(d.getDate() - 1); }
+  return n;
+}
+
+/* مروحة صغيرة ثابتة لبطاقات الشرح */
+function fanMini(frac){
+  return `<svg viewBox="-120 -120 240 240" aria-hidden="true"><defs>${FAN_DEFS.replace(/id="fn/g, 'id="m-fn')}</defs>
+    <circle cx="0" cy="0" r="96" fill="rgba(255,255,255,.12)" stroke="rgba(255,255,255,.35)" stroke-width="1.5"/>
+    ${FAN_LAYERS.map(([rr, g, lag]) => `<path d="${sector(rr, Math.max(0, frac * 360 - lag))}" fill="url(#m-${g})" stroke="rgba(255,255,255,.55)" stroke-width=".8"/>`).join("")}
+    <circle r="9" fill="#FFFBF0" stroke="#F08F31" stroke-width="4"/></svg>`;
+}
+
+/* حلقة أفضل حبس — الهدف ٣ دقائق */
+const GOAL = 180;
+function ringHTML(best){
+  const r = 44, c = 2 * Math.PI * r, f = clamp(best / GOAL, 0, 1);
+  return `<svg class="br-ring" viewBox="0 0 110 110" aria-hidden="true">
+    <defs><linearGradient id="brRingG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFC06A"/><stop offset="1" stop-color="#E3751D"/></linearGradient></defs>
+    <circle cx="55" cy="55" r="${r}" class="br-ring-bg"/>
+    <circle cx="55" cy="55" r="${r}" class="br-ring-fg" stroke="url(#brRingG)" stroke-dasharray="${c.toFixed(1)}"
+      style="--off:${(c * (1 - f)).toFixed(1)};--full:${c.toFixed(1)}"/>
+  </svg>`;
+}
+
+function presetCard(p, on){
+  const c = cleanCfg({ ...cfg, ...p.cfg });
+  const holds = Array.from({ length: c.rounds }, (_, i) => holdFor(c, i + 1));
+  const mx = Math.max(...holds, 1);
+  const bars = holds.map(h => `<i style="--h:${c.holdMode === "fixed" ? Math.max(28, Math.round(h / mx * 100)) : 100}%"></i>`).join("");
+  return `
+    <button type="button" class="br-pk${on ? " on" : ""}" data-preset="${p.k}" aria-pressed="${on}">
+      <span class="br-pk-top"><b>${L(p.name)}</b>
+        <span class="br-lvl" aria-label="${L("المستوى {0} من 3", p.lvl)}">${[1,2,3].map(i => `<i class="${i <= p.lvl ? "on" : ""}"></i>`).join("")}</span></span>
+      <span class="br-pk-viz${c.holdMode === "free" ? " free" : ""}">${bars}${c.holdMode === "free" ? `<em>∞</em>` : ""}</span>
+      <span class="br-pk-meta"><b>${L("≈ {0} د", estMinutes(c))}</b><span>${c.rounds}×${c.breaths}</span></span>
+      <small>${L(p.desc)}</small>
+      <i class="br-pk-ck" aria-hidden="true"><svg class="ic"><use href="#i-check"/></svg></i>
+    </button>`;
+}
+
+let advOpen = false;     // حالة «تخصيص الجلسة»
+
 function setupHTML(){
   const st = stats();
   const pk = presetOf(cfg);
   const fixed = cfg.holdMode === "fixed";
   const sm = summaryText();
+  const streak = breathStreak();
   const holdSub = fixed && cfg.holdStep
     ? L("الجولة الأخيرة {0}", mmss(holdFor(cfg, cfg.rounds))) : "";
+
+  /* هذا الأسبوع: سبع خلايا سداسية، اليوم أولاً في اتجاه القراءة */
+  const days = breathDays();
+  const names = [L("ح"),L("ن"),L("ث"),L("ر"),L("خ"),L("ج"),L("س")];
+  const t0 = new Date(); t0.setHours(0,0,0,0);
+  const sun = new Date(t0); sun.setDate(sun.getDate() - sun.getDay());
+  let wk = "", wkN = 0;
+  for (let i = 0; i < 7; i++){
+    const d = new Date(sun); d.setDate(sun.getDate() + i);
+    const on = days.has(C.dayKey(d)); if (on) wkN++;
+    wk += `<span class="br-wd${on ? " on" : ""}${+d === +t0 ? " now" : ""}${d > t0 ? " ahead" : ""}"><i></i><small>${names[i]}</small></span>`;
+  }
+  const mins = Math.round((C.S.breaths || []).reduce((a, b) => a + (b.dur || 0), 0) / 60);
+  const bestSub = !st.best ? L("الهدف الأول: دقيقة كاملة")
+    : st.best >= GOAL ? L("تجاوزت ٣ دقائق 🎉") : L("باقي {0} للـ ٣ دقائق", mmss(GOAL - st.best));
+
   return `
   <div class="br-hero">
-    <div class="br-hero-bg" id="brHeroBg" aria-hidden="true"></div>
-    ${hexSVG(.7, "br-hero-hex", "h-")}
+    <div class="br-hero-bg" aria-hidden="true"><i id="brHeroBg"></i></div>
+    <div class="br-hero-top">
+      <span class="br-chip">${L("طريقة ويم هوف")}</span>
+      ${streak ? `<span class="br-chip warm">🔥 ${streak === 1 ? L("يوم تنفّس") : L("{0} أيام متتالية", streak)}</span>` : ""}
+    </div>
+    <button type="button" class="br-orb" data-act="start" aria-label="${esc(L("ابدأ الجلسة"))}">
+      <i class="br-ripple"></i><i class="br-ripple r2"></i>
+      ${hexSVG(.8, "br-orb-hex", "h-")}
+      <span class="br-orb-tx" aria-hidden="true"><b class="in">${L("شهيق")}</b><b class="out">${L("زفير")}</b></span>
+    </button>
     <div class="br-hero-tx">
-      <span class="br-eyebrow">${L("طريقة ويم هوف")}</span>
       <h2>${L("التنفس العميق")}</h2>
       <p>${L("أنفاس عميقة، ثم حبس النفس، ثم شهيق عميق ونحبس النفس — جولة بعد جولة.")}</p>
     </div>
-    <div class="br-plan">
-      <b>${esc(sm.name)}</b>
-      <span>${esc(sm.line)}</span>
-      <span>${L("الحبس")}: ${esc(sm.holds)}</span>
+    <div class="br-tags">
+      <span class="gold">${esc(sm.name)}</span>
+      <span>${L("{0} جولات", cfg.rounds)}</span>
+      <span>${L("{0} نفَس", cfg.breaths)}</span>
+      <span>${cfg.holdMode === "free" ? L("≈ {0} د · حسب حبسك", estMinutes(cfg)) : L("≈ {0} دقيقة", estMinutes(cfg))}</span>
     </div>
     <button class="btn br-go" data-act="start"><svg class="ic"><use href="#i-play"/></svg><span>${L("ابدأ الجلسة")}</span></button>
-    <p class="br-est">${esc(estText())}</p>
-    <div class="br-hero-stats">
-      <div><b>${st.best ? mmss(st.best) : "—"}</b><small>${L("أفضل حبس")}</small></div>
-      <div><b>${st.count}</b><small>${L("الجلسات")}</small></div>
-      <div><b>${st.week}</b><small>${L("هذا الأسبوع")}</small></div>
+  </div>
+
+  <div class="br-ins">
+    <div class="br-best">
+      <div class="br-best-ring">${ringHTML(st.best)}<span><b>${st.best ? mmss(st.best) : "—"}</b><small>${L("أفضل حبس")}</small></span></div>
+      <p>${esc(bestSub)}</p>
+    </div>
+    <div class="br-wk">
+      <div class="br-wk-h"><b>${L("هذا الأسبوع")}</b><span>${wkN}/7</span></div>
+      <div class="br-wds">${wk}</div>
+      <p><b>${st.count}</b> ${L("جلسة")} · <b>${mins}</b> ${L("دقيقة إجمالاً")}</p>
     </div>
   </div>
 
   <div class="br-sec">
-    <div class="head-row"><h2>${L("خصّص جلستك")}</h2>
-      <span class="count">${esc(sm.name)}</span></div>
-    <div class="chips br-presets">${PRESETS.map(p =>
-      `<button type="button" class="chip ${pk === p.k ? "on" : ""}" data-preset="${p.k}">${L(p.name)}</button>`).join("")}</div>
+    <div class="head-row"><h2>${L("اختر جلستك")}</h2>
+      <span class="count">${pk === "custom" ? L("مخصّصة") : ""}</span></div>
+    <div class="br-pks">${PRESETS.map(p => presetCard(p, pk === p.k)).join("")}</div>
     ${pk === "basic" ? `<p class="br-note">${L("الأساسي يطابق فيديو ويم هوف للمبتدئين: 3 جولات بطيئة، والحبس يزيد 30 ثانية كل جولة.")}</p>` : ""}
-    <div class="card br-cfg">
-      ${stepRow("rounds",  L("عدد الجولات"), "", cfg.rounds)}
-      ${stepRow("breaths", L("الأنفاس في كل جولة"), L("ويم هوف يوصي بـ 30 إلى 40"), cfg.breaths)}
-      ${segRow("pace", L("سرعة التنفس"), [["slow", L("بطيء")], ["mid", L("متوسط")], ["fast", L("سريع")]],
-               L("نفَس كل {0} ثانية", (PACES[cfg.pace].inh + PACES[cfg.pace].exh).toFixed(1)))}
-      ${segRow("holdMode", L("حبس النفس"), [["free", L("حتى أحتاج")], ["fixed", L("وقت محدد")]])}
-      ${fixed ? stepRow("hold", L("مدة الحبس"), holdSub, mmss(cfg.hold)) : ""}
-      ${fixed ? segRow("holdStep", L("زيادة الحبس كل جولة"), [[0, L("بدون")], [15, L("{0} ث", 15)], [30, L("{0} ث", 30)]]) : ""}
-      ${stepRow("recover", L("نحبس النفس"), L("بعد الشهيق العميق في نهاية كل جولة"), L("{0} ث", cfg.recover))}
-    </div>
-    <div class="card br-cfg">
-      ${togRow("voice", L("صوت يرشدك"), L("يعلن الجولة وبداية كل مرحلة"))}
-      ${togRow("tone",  L("نغمة النفَس"), L("تصعد مع الشهيق وتهبط مع الزفير"))}
-      ${togRow("vibe",  L("اهتزاز"), L("عند تغيّر المرحلة — على الأجهزة التي تدعمه"))}
-    </div>
+
+    <details class="br-adv" ${advOpen ? "open" : ""}>
+      <summary>
+        <span class="br-adv-ic"><svg class="ic"><use href="#i-edit"/></svg></span>
+        <span class="br-adv-tx"><b>${L("خصّص جلستك")}</b><small>${esc(sm.line)} · ${L("الحبس")}: ${esc(sm.holds)}</small></span>
+        <i class="drop-ar"></i>
+      </summary>
+      <div class="br-adv-body">
+        <div class="card br-cfg">
+          ${stepRow("rounds",  L("عدد الجولات"), "", cfg.rounds)}
+          ${stepRow("breaths", L("الأنفاس في كل جولة"), L("ويم هوف يوصي بـ 30 إلى 40"), cfg.breaths)}
+          ${segRow("pace", L("سرعة التنفس"), [["slow", L("بطيء")], ["mid", L("متوسط")], ["fast", L("سريع")]],
+                   L("نفَس كل {0} ثانية", (PACES[cfg.pace].inh + PACES[cfg.pace].exh).toFixed(1)))}
+          ${segRow("holdMode", L("حبس النفس"), [["free", L("حتى أحتاج")], ["fixed", L("وقت محدد")]])}
+          ${fixed ? stepRow("hold", L("مدة الحبس"), holdSub, mmss(cfg.hold)) : ""}
+          ${fixed ? segRow("holdStep", L("زيادة الحبس كل جولة"), [[0, L("بدون")], [15, L("{0} ث", 15)], [30, L("{0} ث", 30)]]) : ""}
+          ${stepRow("recover", L("نحبس النفس"), L("بعد الشهيق العميق في نهاية كل جولة"), L("{0} ث", cfg.recover))}
+        </div>
+        <div class="card br-cfg">
+          ${togRow("voice", L("صوت يرشدك"), L("يعلن الجولة وبداية كل مرحلة"))}
+          ${togRow("tone",  L("نغمة النفَس"), L("تصعد مع الشهيق وتهبط مع الزفير"))}
+          ${togRow("vibe",  L("اهتزاز"), L("عند تغيّر المرحلة — على الأجهزة التي تدعمه"))}
+        </div>
+      </div>
+    </details>
   </div>
 
-  <details class="card br-how" ${howOpen ? "open" : ""}>
-    <summary><span>${L("كيف تعمل الجلسة؟")}</span><i class="drop-ar"></i></summary>
-    <ol>
-      <li><b>${L("الأنفاس")}</b><span>${L("تنفّس بعمق من البطن ثم الصدر، وأطلق بدون جهد. تابع السداسي: يكبر مع الشهيق ويصغر لنقطة مع الزفير.")}</span></li>
-      <li><b>${L("حبس النفس")}</b><span>${L("بعد آخر نفَس عميق أطلق الهواء واحبس نفسك. المروحة الزرقاء تعدّ وقت الحبس.")}</span></li>
-      <li><b>${L("نحبس النفس")}</b><span>${L("شهيق عميق واحبسه حتى ينتهي العدّ، ثم أطلقه وابدأ الجولة التالية.")}</span></li>
+  <div class="br-sec">
+    <div class="head-row"><h2>${L("كيف تعمل الجلسة؟")}</h2></div>
+    <ol class="br-steps">
+      <li><span class="br-st-art">${hexSVG(.78, "", "s1-")}</span>
+        <b>${L("١ · الأنفاس")}</b><small>${L("{0} نفَس عميق — السداسي يكبر ويصغر معك", cfg.breaths)}</small></li>
+      <li><span class="br-st-art fan">${fanMini(.68)}</span>
+        <b>${L("٢ · حبس النفس")}</b><small>${L("بعد الزفير — المروحة تعدّ وقتك")}</small></li>
+      <li><span class="br-st-art">${hexSVG(1, "", "s3-")}<em>${cfg.recover}</em></span>
+        <b>${L("٣ · نحبس النفس")}</b><small>${L("شهيق عميق واحبسه {0} ث", cfg.recover)}</small></li>
     </ol>
-  </details>
+  </div>
 
   <div class="br-safe">
     <span class="br-safe-ic" aria-hidden="true">!</span>
@@ -974,6 +1066,35 @@ function setupHTML(){
   </div>
 
   ${historyHTML()}`;
+}
+
+/* منحنى أفضل حبس عبر الجلسات — من الأقدم للأحدث في اتجاه القراءة */
+function trendSVG(vals){
+  const W = 320, H = 120, PX = 18, PT = 26, PB = 14;
+  const n = vals.length, mx = Math.max(...vals, 1);
+  const rtl = document.documentElement.dir === "rtl";
+  const pts = vals.map((v, i) => {
+    let x = PX + i * (W - 2 * PX) / Math.max(1, n - 1);
+    if (rtl) x = W - x;
+    return [x, H - PB - (v / mx) * (H - PT - PB)];
+  });
+  let d = `M${f1(pts[0][0])} ${f1(pts[0][1])}`;
+  for (let i = 0; i < n - 1; i++){
+    const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+    const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6];
+    const c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+    d += `C${f1(c1[0])} ${f1(c1[1])} ${f1(c2[0])} ${f1(c2[1])} ${f1(p2[0])} ${f1(p2[1])}`;
+  }
+  const area = `${d}L${f1(pts[n - 1][0])} ${H}L${f1(pts[0][0])} ${H}Z`;
+  const bi = vals.indexOf(mx), [bx, by] = pts[bi];
+  return `<svg class="br-tr" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+    <defs><linearGradient id="brTrA" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--br-fan)" stop-opacity=".35"/><stop offset="1" stop-color="var(--br-fan)" stop-opacity="0"/></linearGradient></defs>
+    ${[.25,.5,.75].map(k => `<line x1="0" x2="${W}" y1="${f1(PT + (H - PT - PB) * k)}" y2="${f1(PT + (H - PT - PB) * k)}" class="br-tr-grid"/>`).join("")}
+    <path d="${area}" fill="url(#brTrA)"/>
+    <path d="${d}" class="br-tr-line"/>
+    ${pts.map(([x, y], i) => `<circle cx="${f1(x)}" cy="${f1(y)}" r="${i === bi ? 5.5 : 3.2}" class="${i === bi ? "top" : ""}"/>`).join("")}
+    <text x="${f1(clamp(bx, 26, W - 26))}" y="${f1(by - 11)}" class="br-tr-lbl">${mmss(mx)}</text>
+  </svg>`;
 }
 
 function fmtDate(t){
@@ -1001,13 +1122,14 @@ function historyHTML(){
 
   /* تطوّر أفضل حبس عبر آخر ١٢ جلسة — من الأقدم للأحدث */
   const trend = list.slice(0, 12).reverse();
+  const tv = trend.map(bestOf);
+  const delta = tv.length >= 2 ? tv[tv.length - 1] - tv[0] : 0;
   const trendHTML = trend.length >= 2 ? `
     <div class="card br-trend">
-      <div class="head-row"><h3>${L("تطوّر حبس النفس")}</h3><span class="count">${L("آخر {0} جلسات", trend.length)}</span></div>
-      <div class="br-spark">${trend.map(b => {
-        const v = bestOf(b), h = Math.max(6, Math.round(v / max * 100));
-        return `<i class="${v === max ? "top" : ""}" style="--h:${h}%" title="${mmss(v)}"></i>`;
-      }).join("")}</div>
+      <div class="head-row"><h3>${L("تطوّر حبس النفس")}</h3>
+        <span class="br-delta${delta > 0 ? " up" : delta < 0 ? " down" : ""}">${delta > 0 ? "▲ +" + mmss(delta) : delta < 0 ? "▼ " + mmss(-delta) : L("ثابت")}</span></div>
+      ${trendSVG(tv)}
+      <p class="br-tr-foot">${L("أفضل حبس في آخر {0} جلسات", trend.length)}</p>
     </div>` : "";
 
   const items = list.slice(0, shown).map(b => {
@@ -1066,9 +1188,15 @@ export function renderBreath(){
     paintButtons();
     return;
   }
+  const pks = box.querySelector(".br-pks"), sl = pks ? pks.scrollLeft : 0;
   box.innerHTML = setupHTML();
+  const pk2 = box.querySelector(".br-pks"); if (pk2 && sl) pk2.scrollLeft = sl;
   const hb = $("brHeroBg"), img = heroImage();
   if (hb && img) hb.style.backgroundImage = `url(${img})`;
+  /* حلقة أفضل حبس تمتلئ عند الظهور */
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const r = box.querySelector(".br-ring-fg"); if (r) r.classList.add("go");
+  }));
 }
 
 /* يُستدعى من show(): يلوّن الصفحة بلوحة التنفس ويوقف الجلسة مؤقتاً عند المغادرة */
@@ -1170,6 +1298,7 @@ export function initBreath(ctx){
 
   box.addEventListener("toggle", e => {
     if (e.target.classList && e.target.classList.contains("br-how")) howOpen = e.target.open;
+    if (e.target.classList && e.target.classList.contains("br-adv")) advOpen = e.target.open;
   }, true);
 
   document.addEventListener("visibilitychange", () => {

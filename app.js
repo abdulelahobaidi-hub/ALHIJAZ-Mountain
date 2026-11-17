@@ -11,6 +11,7 @@ import { initProgress, renderProgress, badgeCount, upcomingHTML } from "./progre
 import { L, LOC, SPEECH, lang, setLang, translateStatic } from "./i18n.js";
 import { shareCard } from "./share.js";
 import { initPush, renderPush, wirePush } from "./push.js";
+import { initNotify, notifyBoot, notifyRefresh, notifyTeardown } from "./notify.js";
 import { SHOTS } from "./ex.js";
 import { initHabits, loadHabits, renderHabits, HABITS_LK } from "./habits.js";
 import { initBreath, loadBreaths, renderBreath, breathShown, breathTeardown, paintMeta, BREATH_LK } from "./breath.js";
@@ -572,6 +573,7 @@ async function signOutNow(){
     try { await S.fb.authM.signOut(S.fb.auth); } catch(e){}
   }
   S.mode = null; S.user = null; S.plans = []; S.sessions = []; S.breaths = [];
+  notifyTeardown();
   socialTeardown();
   stopTimer();
   breathTeardown(); applyTheme();
@@ -907,6 +909,7 @@ function show(view){
   if (view === "habits") renderHabits();
   breathShown(view === "breath");          // لوحة ألوان التنفس للصفحة كلها
   if (view === "breath") renderBreath();
+  notifyRefresh();
   window.scrollTo(0, 0);
 }
 
@@ -925,6 +928,7 @@ async function enterApp(){
   await refreshStreak();
   show("home");
   socialBoot();
+  notifyBoot();
   offerPlan();
 }
 
@@ -2150,12 +2154,13 @@ $("bdNo").onclick = () => { $("bodySheet").hidden = true; };
 $("bodySheet").addEventListener("click", e => { if (e.target.id === "bodySheet") $("bodySheet").hidden = true; });
 
 const CTX = { S, toast, ask, dayKey, streakInfo, countStreak, restWeekdays, show, planRounds, planSeconds, addPlanCopy,
-              badgeCount, openRM, openBody, delBody, ascent, ASCENT };
+              badgeCount, openRM, openBody, delBody, ascent, ASCENT, todaySlot };
 initSocial(CTX);
 initProgress(CTX);
 initHabits(CTX);
 initBreath(CTX);
 initPush(CTX);
+initNotify(CTX);
 wirePush();
 
 /* حفظ تفضيلات الصوت */

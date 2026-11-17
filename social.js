@@ -10,6 +10,7 @@
    ============================================================ */
 
 import { L, LOC, lang } from "./i18n.js";
+import { groupMeta } from "./notify.js";
 
 let C = null;                 // context handed over by app.js
 let P = null;                 // my public profile
@@ -242,7 +243,7 @@ async function acceptRequest(req){
     await m.setDoc(m.doc(db, "friendships", pairId(uid, req.from)),
                    { a: uid, b: req.from, at: Date.now() });
     await m.deleteDoc(m.doc(db, "friendRequests", req.id));
-    await loadRequests(); await loadFriends(); renderClub();
+    await loadRequests(); await loadFriends(); renderClub(); emit();
     C.toast(L("صرتوا أصدقاء — {0}", req.fromName || "").trim());
   } catch(err){ console.error(err); C.toast(L("تعذّر القبول")); }
 }
@@ -251,7 +252,7 @@ async function rejectRequest(req){
   const { db, m } = fb();
   try {
     await m.deleteDoc(m.doc(db, "friendRequests", req.id));
-    await loadRequests(); renderClub();
+    await loadRequests(); renderClub(); emit();
     C.toast(L("انرفض الطلب"));
   } catch(err){ console.error(err); C.toast(L("تعذّر الرفض")); }
 }
@@ -262,7 +263,7 @@ async function removeFriend(other, name){
   const { db, m } = fb();
   try {
     await m.deleteDoc(m.doc(db, "friendships", pairId(myUid(), other)));
-    await loadFriends(); renderClub(); C.toast(L("انحذف"));
+    await loadFriends(); renderClub(); emit(); C.toast(L("انحذف"));
   } catch(err){ console.error(err); C.toast(L("تعذّر الحذف")); }
 }
 
@@ -296,7 +297,7 @@ async function createGroup(name){
       challenge: { target: 5, weekKey: weekKey() }
     });
     await m.setDoc(m.doc(db, "groupCodes", code), { gid: ref.id, at: Date.now() });
-    await loadGroups(); renderClub();
+    await loadGroups(); renderClub(); emit();
     C.toast(L("انشأ القروب — كود الدعوة {0}", code));
   } catch(err){ console.error(err); C.toast(L("تعذّر إنشاء القروب — تأكد من قواعد Firestore")); }
 }
@@ -310,7 +311,7 @@ async function joinByCode(raw){
     if (!snap.exists()){ C.toast(L("كود غير صحيح")); return; }
     const gid = snap.data().gid;
     await m.updateDoc(m.doc(db, "groups", gid), { memberUids: m.arrayUnion(uid) });
-    await loadGroups(); renderClub();
+    await loadGroups(); renderClub(); emit();
     C.toast(L("انضممت للقروب"));
   } catch(err){ console.error(err); C.toast(L("تعذّر الانضمام")); }
 }
@@ -322,7 +323,7 @@ async function leaveGroup(g){
   try {
     await m.updateDoc(m.doc(db, "groups", g.id), { memberUids: m.arrayRemove(myUid()) });
     closeChat(); curGroup = null;
-    await loadGroups(); C.show("club"); C.toast(L("غادرت القروب"));
+    await loadGroups(); emit(); C.show("club"); C.toast(L("غادرت القروب"));
   } catch(err){ console.error(err); C.toast(L("تعذّرت المغادرة")); }
 }
 
@@ -467,10 +468,199 @@ export async function socialAfterWorkout(sess){
 /* ============================================================
    UI — club screen
    ============================================================ */
+const dk = (d = new Date()) => C.dayKey(d);
+const trainedToday = p => ((p && p.days) || []).includes(dk());
+
+/* مرحلة العضو حسب سلسلته — نفس محطات خط الارتفاع */
+function tierOf(n){
+  const A = C.ASCENT || [];
+  let name = L("متسلّق جديد"), next = A[0] || null;
+  A.forEach((s, i) => { if (n >= s.d){ name = L("مرحلة {0}", L(s.name)); next = A[i + 1] || null; } });
+  return { name, next };
+}
+
+const spaced = id => String(id || "").replace(/^(\d{3})(\d{3})$/, "$1 $2");
+
+/* لون ثابت لكل قروب من اسمه */
+const G_PAL = [["#F28E5A","#C73559"],["#793E5E","#C73559"],["#F5A63B","#E4645C"],["#54244A","#A84B7A"],["#3F8A62","#1F6B6B"],["#2C5DB8","#793E5E"]];
+function hashOf(s){ let h = 0; for (const ch of String(s)) h = (h * 31 + ch.codePointAt(0)) >>> 0; return h; }
+
+function cardHTML(s){
+  const me = P || {};
+  const t = tierOf(s.streak);
+  const since = me.createdAt
+    ? new Date(me.createdAt).toLocaleDateString(LOC(), { month:"long", year:"numeric" }) : "";
+  const pct = t.next ? Math.min(100, Math.round(s.streak / t.next.d * 100)) : 100;
+  const nextTx = t.next ? L("{0} / {1} يوم إلى {2}", s.streak, t.next.d, L(t.next.name)) : L("وصلت القمة ⛰️");
+  const num = esc(spaced(me.memberId || "—"));
+  return `
+  <div class="mc-wrap">
+    <div class="mc" id="mCard" role="button" tabindex="0" aria-label="${L("بطاقة العضوية — اضغط لقلبها")}">
+      <div class="mc-in">
+        <div class="mc-face mc-front">
+          <svg class="mc-art" viewBox="0 0 340 214" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+            <defs>
+              <linearGradient id="mcSky" x1="0" y1="0" x2=".35" y2="1">
+                <stop offset="0" stop-color="#2B182C"/><stop offset=".55" stop-color="#6B2F55"/><stop offset="1" stop-color="#C73559"/>
+              </linearGradient>
+              <radialGradient id="mcSun" cx=".5" cy=".5" r=".5">
+                <stop offset="0" stop-color="#FFF3C9"/><stop offset=".45" stop-color="#FFD9A0" stop-opacity=".8"/><stop offset="1" stop-color="#F28E5A" stop-opacity="0"/>
+              </radialGradient>
+            </defs>
+            <rect width="340" height="214" fill="url(#mcSky)"/>
+            <g fill="#FFF3C9" opacity=".7"><circle cx="40" cy="30" r="1"/><circle cx="96" cy="18" r=".8"/><circle cx="150" cy="40" r="1.1"/><circle cx="214" cy="22" r=".7"/><circle cx="300" cy="44" r=".9"/><circle cx="262" cy="14" r="1"/></g>
+            <circle cx="96" cy="150" r="70" fill="url(#mcSun)"/>
+            <path d="M0 214 L46 150 L84 172 L138 112 L184 160 L226 126 L284 176 L340 134 L340 214Z" fill="#8A3F5C" opacity=".55"/>
+            <path d="M138 112 L152 128 L146 126 L138 136 L130 124 L124 128Z" fill="#FFF3C9" opacity=".55"/>
+            <path d="M0 214 L40 182 L96 202 L160 166 L222 196 L286 170 L340 200 L340 214Z" fill="#2B182C" opacity=".8"/>
+          </svg>
+          <i class="mc-glare" aria-hidden="true"></i>
+          <div class="mc-top">
+            <img class="mc-logo" src="icon-192.png" alt="" width="34" height="34">
+            <span class="mc-club"><b>${L("نادي الجبال")}</b><small>${L("بطاقة عضوية")}</small></span>
+            <span class="mc-tier">${esc(t.name)}</span>
+          </div>
+          <div class="mc-num">
+            <small>${L("رقم العضوية")}</small>
+            <b dir="ltr">${num}</b>
+            <span class="mc-prog" title="${esc(nextTx)}"><i style="width:${pct}%"></i></span>
+            <span class="mc-next">${esc(nextTx)}</span>
+          </div>
+          <div class="mc-bot">
+            <span class="mc-who">${avatar(P || { name: C.S.user.name }, 34)}
+              <span><b>${esc(me.name || C.S.user.name)}</b>${since ? `<small>${L("عضو منذ {0}", esc(since))}</small>` : ""}</span>
+            </span>
+            <span class="mc-chip" aria-hidden="true"><i></i><i></i><i></i></span>
+          </div>
+        </div>
+        <div class="mc-face mc-back">
+          <i class="mc-stripe" aria-hidden="true"></i>
+          <p class="mc-back-t">${L("ادعُ أصدقاءك للنادي")}</p>
+          <p class="mc-back-s">${L("يضيفونك برقم عضويتك ويوصلك طلب تقبله")}</p>
+          <b class="mc-back-num" dir="ltr">${num}</b>
+          <span class="mc-back-btns">
+            <button type="button" data-mc="copy"><svg class="ic"><use href="#i-copy"/></svg><span>${L("انسخ")}</span></button>
+            <button type="button" data-mc="share"><svg class="ic"><use href="#i-share"/></svg><span>${L("شارك")}</span></button>
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="club-stats">
+    <div class="cs"><span class="cs-ic s-rose"><svg class="ic"><use href="#i-flame"/></svg></span><b>${s.streak}</b><small>${L("أيام متتالية")}</small></div>
+    <div class="cs"><span class="cs-ic s-gold"><svg class="ic"><use href="#i-cal"/></svg></span><b>${s.week}</b><small>${L("هذا الأسبوع")}</small></div>
+    <div class="cs"><span class="cs-ic s-plum"><svg class="ic"><use href="#i-check"/></svg></span><b>${s.total}</b><small>${L("تمرين")}</small></div>
+  </div>`;
+}
+
+async function copyId(){
+  try { await navigator.clipboard.writeText(P.memberId); C.toast(L("انتسخ الرقم")); }
+  catch(e){ C.toast(L("رقمك: ") + P.memberId); }
+}
+async function shareId(){
+  const txt = L("أضفني في نادي الجبال 🏔️\nرقم عضويتي: {0}\n{1}", P.memberId, location.origin + location.pathname);
+  try {
+    if (navigator.share) await navigator.share({ text: txt });
+    else { await navigator.clipboard.writeText(txt); C.toast(L("انتسخت الدعوة")); }
+  } catch(e){ /* ألغى المشاركة */ }
+}
+
+/* البطاقة: تنقلب بالضغط، وتميل مع الإصبع واللمعة تتبعه */
+function wireCard(){
+  const card = $("mCard"); if (!card) return;
+  const flip = () => card.classList.toggle("flip");
+  card.onclick = e => {
+    const b = e.target.closest("[data-mc]");
+    if (b){ e.stopPropagation(); return b.dataset.mc === "copy" ? copyId() : shareId(); }
+    flip();
+  };
+  card.onkeydown = e => { if (e.key === "Enter" || e.key === " "){ e.preventDefault(); flip(); } };
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduce) return;
+  const move = e => {
+    const r = card.getBoundingClientRect();
+    const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+    card.style.setProperty("--mx", (x * 100).toFixed(1) + "%");
+    card.style.setProperty("--my", (y * 100).toFixed(1) + "%");
+    card.style.setProperty("--ry", ((x - .5) * 10).toFixed(2) + "deg");
+    card.style.setProperty("--rx", ((.5 - y) * 8).toFixed(2) + "deg");
+    card.classList.add("lit");
+  };
+  const leave = () => {
+    card.style.setProperty("--rx", "0deg"); card.style.setProperty("--ry", "0deg");
+    card.classList.remove("lit");
+  };
+  card.onpointermove = move; card.onpointerleave = leave; card.onpointerup = leave; card.onpointercancel = leave;
+}
+
+/* نبض اليوم: من تمرّن اليوم — حلقة ملوّنة حول صورته */
+function renderPulse(s){
+  const wrap = $("pulseWrap"), row = $("pulseRow");
+  if (!friends.length){ wrap.hidden = true; return; }
+  wrap.hidden = false;
+  const meP = { ...(P || {}), name: C.S.user.name, photo: C.S.user.photo || (P && P.photo) || "",
+                streak: s.streak, me: true, on: C.streakInfo().todayDone };
+  const list = [meP, ...[...friends].map(f => ({ ...f, on: trainedToday(f) }))
+    .sort((a, b) => (b.on - a.on) || (b.streak || 0) - (a.streak || 0))];
+  const n = list.filter(p => p.on).length;
+  $("pulseNote").textContent = L("تمرّن اليوم {0} من {1}", n, list.length);
+  row.innerHTML = list.map((p, i) => `
+    <button type="button" class="pl${p.on ? " on" : ""}" data-pl="${p.me ? "" : esc(p.uid)}" style="--d:${i * 40}ms"
+      aria-label="${esc(p.me ? L("أنت") : p.name)} — ${p.on ? L("تمرّن اليوم") : L("ما تمرّن اليوم بعد")}">
+      <span class="pl-ring">${avatar(p, 58)}</span>
+      ${p.streak ? `<span class="pl-fl">🔥${p.streak}</span>` : ""}
+      <span class="pl-nm">${esc(p.me ? L("أنت") : p.name)}</span>
+    </button>`).join("");
+  row.querySelectorAll("[data-pl]").forEach(b => {
+    b.onclick = () => {
+      if (!b.dataset.pl){ C.show("home"); return; }
+      const f = friends.find(x => x.uid === b.dataset.pl); if (f) openFriendProfile(f);
+    };
+  });
+}
+
+/* سباق الأسبوع: منصة التتويج بين أصدقائك */
+function renderRace(s){
+  const wrap = $("raceWrap");
+  if (!friends.length){ wrap.hidden = true; return; }
+  wrap.hidden = false;
+  const me = { ...(P || {}), uid: myUid(), name: C.S.user.name, photo: C.S.user.photo || (P && P.photo) || "", me: true };
+  const val = p => p.me ? s.week : thisWeek(p, "week");
+  const rows = [me, ...friends].sort((a, b) => val(b) - val(a) || (b.streak || 0) - (a.streak || 0));
+  const top = rows.slice(0, 3);
+  const order = [1, 0, 2].filter(i => top[i]);
+  const cls = ["gold", "silver", "bronze"];
+  const myRank = rows.findIndex(p => p.me);
+  let line;
+  if (val(me) === 0) line = L("أول تمرين هذا الأسبوع يدخلك السباق");
+  else if (myRank === 0) line = rows[1] && val(rows[1]) === val(me)
+    ? L("متعادل مع {0} على الصدارة — تمرين واحد يحسمها", esc(rows[1].name))
+    : L("أنت في الصدارة 👑 حافظ عليها");
+  else {
+    const ahead = rows[myRank - 1], gap = val(ahead) - val(me) + 1;
+    line = L("أنت في المركز {0} · {1} وتتجاوز {2}", myRank + 1,
+             gap === 1 ? L("تمرين واحد") : L("{0} تمارين", gap), esc(ahead.name));
+  }
+  wrap.innerHTML = `
+    <div class="head-row"><h2>${L("سباق الأسبوع")}</h2><span class="count">${L("بعدد التمارين")}</span></div>
+    <div class="podium">${order.map(i => {
+      const p = top[i];
+      return `<div class="pd pd-${i + 1}${p.me ? " me" : ""}" style="--d:${(2 - i) * 90}ms">
+        ${i === 0 ? `<svg class="ic pd-crown" aria-hidden="true"><use href="#i-crown"/></svg>` : ""}
+        ${avatar(p, i === 0 ? 62 : 50)}
+        <b class="pd-nm">${esc(p.me ? L("أنت") : p.name)}</b>
+        <span class="pd-v">${L("{0} تمرين", val(p))}</span>
+        <span class="pd-block ${cls[i]}"><i>${i + 1}</i></span>
+      </div>`;
+    }).join("")}</div>
+    <p class="race-me">${line}</p>`;
+}
+
 export function renderClub(){
   const me = $("meCard");
   if (!isCloud()){
     me.innerHTML = `<div class="me-lock">
+        <span class="me-lock-ic"><svg class="ic"><use href="#i-friends"/></svg></span>
         <p><b>${L("القروبات تحتاج حساب")}</b></p>
         <p class="muted">${L("سجّل دخولك بجوجل عشان يكون لك رقم عضوية وتقدر تضيف أصدقاء وتنشئ قروبات.")}</p>
       </div>`;
@@ -478,31 +668,16 @@ export function renderClub(){
     $("friendEmpty").hidden = false; $("groupEmpty").hidden = false;
     $("friendEmpty").textContent = L("سجّل دخولك عشان تضيف أصدقاء.");
     $("groupEmpty").textContent  = L("سجّل دخولك عشان تنشئ قروب.");
+    $("pulseWrap").hidden = true; $("raceWrap").hidden = true; $("reqWrap").hidden = true;
+    $("friendCount").textContent = ""; $("groupCount").textContent = "";
     return;
   }
 
   const s = myStats();
-  me.innerHTML = `
-    <div class="me-top">
-      ${avatar(P, 58)}
-      <div class="me-id">
-        <b>${esc(P ? P.name : C.S.user.name)}</b>
-        <span>${L("رقم عضويتك")}</span>
-        <p class="member-id">${esc(P ? P.memberId : "—")}</p>
-      </div>
-      <button class="btn btn-soft btn-sq sm" id="btnCopyId" aria-label="${L("انسخ الرقم")}">
-        <svg class="ic"><use href="#i-copy"/></svg>
-      </button>
-    </div>
-    <div class="me-stats">
-      <span><b>${s.streak}</b>${L("أيام متتالية")}</span>
-      <span><b>${s.week}</b>${L("هذا الأسبوع")}</span>
-      <span><b>${s.total}</b>${L("تمرين")}</span>
-    </div>`;
-  $("btnCopyId").onclick = async () => {
-    try { await navigator.clipboard.writeText(P.memberId); C.toast(L("انتسخ الرقم")); }
-    catch(e){ C.toast(L("رقمك: ") + P.memberId); }
-  };
+  const flipped = $("mCard") && $("mCard").classList.contains("flip");
+  me.innerHTML = cardHTML(s);
+  if (flipped) $("mCard").classList.add("flip");
+  wireCard();
 
   /* friend requests */
   const rw = $("reqWrap"), rl = $("reqList");
@@ -518,31 +693,52 @@ export function renderClub(){
       </span>
       <span class="req-btns">
         <button class="req-yes" aria-label="${L("قبول")}"><svg class="ic"><use href="#i-check"/></svg></button>
-        <button class="req-no" aria-label="${L("رفض")}">✕</button>
+        <button class="req-no" aria-label="${L("رفض")}"><svg class="ic"><use href="#i-x"/></svg></button>
       </span>`;
     li.querySelector(".req-yes").onclick = () => acceptRequest(r);
     li.querySelector(".req-no").onclick  = () => rejectRequest(r);
     rl.appendChild(li);
   });
 
+  renderPulse(s);
+  renderRace(s);
+
   /* friends */
   $("friendEmpty").hidden = friends.length > 0;
   $("friendEmpty").textContent = L("ما عندك أصدقاء بعد. أضف صديق برقم عضويته.");
+  $("friendCount").textContent = friends.length ? String(friends.length) : "";
   renderFriendList();
 
   /* groups */
-  const gl = $("groupList"); gl.innerHTML = "";
+  paintGroups();
+}
+
+/* قائمة القروبات — آخر رسالة وعدد غير المقروء من مركز الإشعارات */
+export function paintGroups(){
+  const gl = $("groupList"); if (!gl || !isCloud()) return;
+  gl.innerHTML = "";
   $("groupEmpty").hidden = groups.length > 0;
   $("groupEmpty").textContent = L("ما أنت في أي قروب. أنشئ قروب أو انضم بكود من صديق.");
-  groups.forEach(g => {
+  $("groupCount").textContent = groups.length ? String(groups.length) : "";
+  const rows = groups.map(g => ({ g, m: groupMeta(g.id) || {} }))
+    .sort((a, b) => ((b.m.last && b.m.last.at) || b.g.createdAt || 0) - ((a.m.last && a.m.last.at) || a.g.createdAt || 0));
+  rows.forEach(({ g, m }) => {
     const li = document.createElement("li");
+    const last = m.last;
+    const lastTx = last
+      ? (last.kind === "sys" ? `${esc(last.name)} ${esc(last.text)}` : `<b>${esc(last.uid === myUid() ? L("أنت") : last.name)}:</b> ${esc(last.text)}`)
+      : L("كود الدعوة {0}", esc(g.code));
+    li.className = m.unread ? "has-new" : "";
     li.innerHTML = `
-      ${groupAvatar(g, 48)}
-      <span class="gr-main"><b>${esc(g.name)}</b>
-        <span>${(g.memberUids||[]).length} ${L("أعضاء")} · ${L("كود")} ${esc(g.code)}</span>
+      ${groupAvatar(g, 52)}
+      <span class="gr-main">
+        <b><span class="nm">${esc(g.name)}</span></b>
+        <span class="gr-last">${lastTx}</span>
+        <span class="gr-meta">${(g.memberUids||[]).length} ${L("أعضاء")}${last ? " · " + since(last.at) : ""}</span>
       </span>
+      ${m.unread ? `<span class="gr-badge">${m.unread > 9 ? "9+" : m.unread}</span>` : ""}
       <svg class="ic gr-go"><use href="#i-back"/></svg>`;
-    li.onclick = () => openGroup(g);
+    li.onclick = () => openGroup(g, m.unread ? "chat" : "board");
     gl.appendChild(li);
   });
 }
@@ -550,19 +746,20 @@ export function renderClub(){
 /* ============================================================
    UI — group screen
    ============================================================ */
-async function openGroup(g){
+async function openGroup(g, tab = "board"){
   await ensureAdmins(g);
-  curGroup = g; gTab = "board";
+  curGroup = g; gTab = tab;
   C.show("group");
   renderGroupHead();
-  setTab("board");
+  setTab(tab);
+  document.dispatchEvent(new CustomEvent("club:group-open", { detail: g.id }));
 }
 
 function groupAvatar(g, size = 46){
   const st = `width:${size}px;height:${size}px`;
-  return g.photo
-    ? `<span class="gav" style="${st};background-image:url('${esc(g.photo)}')"></span>`
-    : `<span class="gav ph" style="${st}"><svg class="ic"><use href="#i-friends"/></svg></span>`;
+  if (g.photo) return `<span class="gav" style="${st};background-image:url('${esc(g.photo)}')"></span>`;
+  const [a, b] = G_PAL[hashOf(g.name || g.id) % G_PAL.length];
+  return `<span class="gav ph" style="${st};--ga:${a};--gb:${b};font-size:${Math.round(size * .42)}px">${esc(String(g.name || "؟").trim().charAt(0))}</span>`;
 }
 
 function renderGroupHead(){
@@ -690,6 +887,17 @@ function frValue(f, key){
        :                    thisWeek(f, "volWeek");
 }
 
+/* آخر ٧ أيام كنقاط صغيرة — اليوم أقصى البداية */
+function miniWeek(f){
+  const set = new Set(f.days || []);
+  let h = "";
+  for (let i = 6; i >= 0; i--){
+    const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - i);
+    h += `<i class="${set.has(dk(d)) ? "on" : ""}"></i>`;
+  }
+  return `<span class="fr-wk" aria-hidden="true">${h}</span>`;
+}
+
 function renderFriendList(){
   const fl = $("friendList"); fl.innerHTML = "";
 
@@ -709,11 +917,12 @@ function renderFriendList(){
   rows.forEach(f => {
     const li = document.createElement("li");
     li.innerHTML = `
-      ${avatar(f)}
+      <span class="av-wrap${trainedToday(f) ? " on" : ""}">${avatar(f, 48)}</span>
       <span class="fr-main"><b><span class="nm">${esc(f.name)}</span>${flame(f.streak)}</b>
         <span>${s.line(f)}${f.lastAt ? " · " + since(f.lastAt) : ""}</span>
+        ${miniWeek(f)}
       </span>
-      <button class="fr-chat" aria-label="${L("محادثة")}"><svg class="ic"><use href="#i-send"/></svg></button>`;
+      <button class="fr-chat" aria-label="${L("محادثة")}"><svg class="ic"><use href="#i-chat"/></svg></button>`;
     li.querySelector(".fr-chat").onclick = e => { e.stopPropagation(); openDM(f); };
     li.onclick = () => openFriendProfile(f);
     fl.appendChild(li);
@@ -1092,6 +1301,7 @@ function openDM(f){
   C.show("dm");
   const { db, m } = fb();
   const pair = pairId(myUid(), f.uid);
+  document.dispatchEvent(new CustomEvent("club:dm-open", { detail: pair }));
 
   $("dmHead").innerHTML = `
     <div class="ghead-row">
@@ -1110,8 +1320,11 @@ function openDM(f){
     if (!extra && !text) return;
     if (!extra) el.value = "";
     try {
+      /* آخر رسالة على وثيقة المحادثة — منها يعرف الطرف الثاني أن عنده رسالة جديدة */
       await m.setDoc(m.doc(db, "dms", pair), { a: pairId(myUid(), f.uid).split("_")[0],
-        b: pairId(myUid(), f.uid).split("_")[1], at: Date.now() }, { merge: true });
+        b: pairId(myUid(), f.uid).split("_")[1], at: Date.now(),
+        lastUid: myUid(), lastName: C.S.user.name || "",
+        lastText: extra ? L("📋 جدول: {0}", extra.name) : text.slice(0, 120) }, { merge: true });
       await m.addDoc(m.collection(db, "dms", pair, "messages"),
         { uid: myUid(), name: C.S.user.name, text, at: Date.now(), kind: extra ? "plan" : "msg",
           ...(extra ? { plan: extra } : {}) });
@@ -1148,6 +1361,7 @@ function openDM(f){
       };
     });
     box.scrollTop = box.scrollHeight;
+    document.dispatchEvent(new CustomEvent("club:dm-open", { detail: pair }));
   }, err => {
     console.error("dm", err);
     const box = $("dmBox"); if (box) box.innerHTML = `<p class="empty">${L("تعذّر تحميل المحادثة — تأكد من نشر قواعد")} Firestore.</p>`;
@@ -1254,6 +1468,7 @@ export async function socialBoot(){
   await loadDuels();
   await pushDuelScores();
   renderClub();
+  emit();
   // ننشر نسخة معروضة من جداولي عشان يشوفها أصدقائي
   for (const p of C.S.plans) publishMyPlan(p);
 }
@@ -1265,4 +1480,19 @@ export function socialTeardown(){
 }
 
 export function memberId(){ return P ? P.memberId : null; }
-export async function refreshClub(){ await loadRequests(); await loadFriends(); await loadGroups(); renderClub(); }
+
+/* ---------- لمركز الإشعارات ---------- */
+export const clubData = () => ({ P, friends, groups, requests, duels, curGroup, dmWith, pairId });
+export const acceptReq = id => { const r = requests.find(x => x.id === id); return r && acceptRequest(r); };
+export const rejectReq = id => { const r = requests.find(x => x.id === id); return r && rejectRequest(r); };
+export function goDM(uid){ const f = friends.find(x => x.uid === uid); if (f) openDM(f); }
+export function goFriend(uid){ const f = friends.find(x => x.uid === uid); if (f) openFriendProfile(f); }
+export function goGroup(gid, tab){ const g = groups.find(x => x.id === gid); if (g) openGroup(g, tab); }
+export async function clapAct(gid, mid){
+  if (!isCloud()) return;
+  const { db, m } = fb();
+  try { await m.updateDoc(m.doc(db, "groups", gid, "messages", mid), { claps: m.arrayUnion(myUid()) }); }
+  catch(err){ console.error("clap", err); C.toast(L("تعذّر التصفيق")); }
+}
+const emit = () => document.dispatchEvent(new Event("club:data"));
+export async function refreshClub(){ await loadRequests(); await loadFriends(); await loadGroups(); renderClub(); emit(); }
